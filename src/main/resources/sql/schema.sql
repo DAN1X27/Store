@@ -1,3 +1,14 @@
+create table Person
+(
+    id         integer generated always as identity primary key,
+    username   varchar   not null unique,
+    email      varchar   not null unique,
+    password   varchar   not null,
+    created_at timestamp not null,
+    role       varchar   not null,
+    is_banned  boolean   not null
+);
+
 create table Item
 (
     id       int generated always as identity primary key,
