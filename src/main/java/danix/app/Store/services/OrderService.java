@@ -172,26 +172,17 @@ public class OrderService {
         List<OrderedItems> orderedItems = orderedItemsService.getByOrder(order);
 
         for (SaveItemDTO itemDTO : responseOrderDTO.getItems()) {
-
-            for (Item item : order.getItems()) {
-                if (item.getName().equals(itemDTO.getName())) {
-
-                    for (OrderedItems orderedItem : orderedItems) {
-                        if (orderedItem.getItem().getName().equals(item.getName())) {
-                            double price = item.getPrice() * orderedItem.getCount();
-                            itemDTO.setPrice(price);
-                            itemDTO.setCount(orderedItem.getCount());
-                            break;
-                        }
-                    }
-
+            for (OrderedItems orderedItem : orderedItems) {
+                if (orderedItem.getItem().getName().equals(itemDTO.getName())) {
+                    double price = itemDTO.getPrice() * orderedItem.getCount();
+                    itemDTO.setPrice(price);
+                    itemDTO.setCount(orderedItem.getCount());
                     break;
                 }
             }
         }
 
         Date date = new Date();
-
         if(order.getOrderReadyDate().before(date)) {
 
             if(order.getStorageDate().before(date)) {
@@ -224,20 +215,15 @@ public class OrderService {
 
         for (SaveItemDTO itemDTO : adminOrderDTO.getItems()) {
 
-            for (Item item : order.getItems()) {
-                if (item.getName().equals(itemDTO.getName())) {
+            for (OrderedItems orderedItem : orderedItems) {
 
-                    for (OrderedItems orderedItem : orderedItems) {
-                        if (orderedItem.getItem().getName().equals(item.getName())) {
-                            double price = orderedItem.getItem().getPrice() * orderedItem.getCount();
-                            itemDTO.setPrice(price);
-                            itemDTO.setCount(orderedItem.getCount());
-                            break;
-                        }
-                    }
-
+                if (orderedItem.getItem().getName().equals(itemDTO.getName())) {
+                    double price = orderedItem.getItem().getPrice() * orderedItem.getCount();
+                    itemDTO.setPrice(price);
+                    itemDTO.setCount(orderedItem.getCount());
                     break;
                 }
+
             }
         }
 
