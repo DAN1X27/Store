@@ -112,12 +112,6 @@ public class OrderService {
         orderRepository.save(convertToOrder(order));
     }
 
-    @Transactional
-    public void updateOrderReady(Integer id, Order order) {
-        order.setId(id);
-        orderRepository.save(order);
-    }
-
     private List<Item> getItems(OrderDTO orderDTO, Order order) {
         Map<String, ItemDTO> itemDTOs = orderDTO.getItems().stream()
                 .collect(Collectors.toMap(ItemDTO::getName, Function.identity()));
