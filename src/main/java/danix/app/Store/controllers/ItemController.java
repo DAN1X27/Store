@@ -4,6 +4,7 @@ import danix.app.Store.dto.DeleteItemDTO;
 import danix.app.Store.dto.SaveItemDTO;
 import danix.app.Store.dto.UpdateItemDTO;
 import danix.app.Store.models.Item;
+import danix.app.Store.repositories.ItemRepository;
 import danix.app.Store.services.ItemService;
 import danix.app.Store.util.*;
 import jakarta.validation.Valid;
@@ -29,12 +30,14 @@ public class ItemController {
     private final ModelMapper modelMapper;
 
     private final ItemValidator itemValidator;
+    private final ItemRepository itemRepository;
 
     @Autowired
-    public ItemController(ItemService itemService, ModelMapper modelMapper, ItemValidator itemValidator) {
+    public ItemController(ItemService itemService, ModelMapper modelMapper, ItemValidator itemValidator, ItemRepository itemRepository) {
         this.itemService = itemService;
         this.modelMapper = modelMapper;
         this.itemValidator = itemValidator;
+        this.itemRepository = itemRepository;
     }
 
     @GetMapping("/getAll")
@@ -52,7 +55,7 @@ public class ItemController {
 
         requestHelper(item);
 
-        SaveItemDTO requestItem = convertToItemDTO(itemService.findItemByName(item.get("name")).get());
+        SaveItemDTO requestItem = convertToItemDTO(itemService.getItemByName(item.get("name")));
 
         return requestItem;
     }
@@ -98,7 +101,7 @@ public class ItemController {
             public void validate(Object target, Errors errors) {
                 String itemName = (String) target;
 
-                if(itemService.findItemByName(itemName).isPresent()) {
+                if(itemRepository.findByName(itemName).isPresent()) {
                     errors.rejectValue("saveItem", "", "Item with this name already exist.");
                 }
             }
@@ -107,7 +110,7 @@ public class ItemController {
         updatedItemValidator.validate(updateItemDTO.getSaveItem().getName(), bindingResult2);
         ErrorHandler.handleException(bindingResult2, ExceptionType.ITEM_EXCEPTION);
 
-        itemService.updateItem(itemService.findItemByName(updateItemDTO.getName()).get().getId(),
+        itemService.updateItem(itemService.getItemByName(updateItemDTO.getName()).getId(),
                 convertToItem(updateItemDTO.getSaveItem()));
 
         return ResponseEntity.ok().body("Updated successfully " + updateItemDTO.getName() + " to " + updateItemDTO.getSaveItem());
@@ -127,7 +130,7 @@ public class ItemController {
         if(!item.containsKey("name")) {
             throw new ItemException("Incorrect key");
 
-        }else if(itemService.findItemByName(item.get("name")).isEmpty()) {
+        }else if(itemRepository.findByName(item.get("name")).isEmpty()) {
             throw new ItemException("Item not found");
         }
     }

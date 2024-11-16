@@ -11,6 +11,7 @@ import org.springframework.validation.Validator;
 public class ItemValidator implements Validator {
     private final ItemService itemService;
 
+
     @Autowired
     public ItemValidator(ItemService itemService) {
         this.itemService = itemService;
@@ -25,8 +26,10 @@ public class ItemValidator implements Validator {
     public void validate(Object target, Errors errors) {
         String itemName = (String) target;
 
-        if(itemService.findItemByName(itemName).isEmpty()) {
-            errors.rejectValue("name", "", "Item not found");
+        try {
+            itemService.getItemByName(itemName);
+        }catch (ItemException e) {
+            errors.rejectValue("name", "", e.getMessage());
         }
     }
 }

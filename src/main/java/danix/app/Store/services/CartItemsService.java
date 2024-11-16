@@ -27,9 +27,4 @@ public class CartItemsService {
     public void save(CartItems cartItems) {
         cartItemsRepository.save(cartItems);
     }
-
-    @Transactional
-    public void delete(CartItems cartItems) {
-        cartItemsRepository.delete(cartItems);
-    }
 }

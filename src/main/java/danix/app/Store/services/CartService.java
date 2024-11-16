@@ -74,7 +74,7 @@ public class CartService {
 
             Cart cart = new Cart();
             cart.setItems(cartDTO.getItems().stream().map(item ->
-                    itemService.findItemByName(item.getName()).get()).toList());
+                    itemService.getItemByName(item.getName())).toList());
 
             cart.setOwner(owner);
 
@@ -104,7 +104,7 @@ public class CartService {
                         for (CartItems cartItem : cartItems) {
                             if(cartItem.getItem().getName().equals(itemDTO.getName())) {
                                 cartItem.setCount(cartItem.getCount() + itemDTO.getCount());
-                                sum+= itemService.findItemByName(i.getName()).get().getPrice() * cartItem.getCount();
+                                sum+= itemService.getItemByName(i.getName()).getPrice() * cartItem.getCount();
                                 break;
                             }
                         }
