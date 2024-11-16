@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.Objects;
+
 public class SaveItemDTO {
     @NotEmpty(message = "Item name must not be empty")
     private String name;
@@ -49,5 +51,18 @@ public class SaveItemDTO {
                 ", price=" + price +
                 ", count=" + count +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        SaveItemDTO that = (SaveItemDTO) o;
+        return Objects.equals(name, that.name) && Objects.equals(price, that.price) && Objects.equals(count, that.count);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, price, count);
     }
 }

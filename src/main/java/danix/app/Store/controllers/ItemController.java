@@ -5,17 +5,12 @@ import danix.app.Store.dto.SaveItemDTO;
 import danix.app.Store.dto.UpdateItemDTO;
 import danix.app.Store.models.Item;
 import danix.app.Store.services.ItemService;
-import danix.app.Store.util.ErrorResponse;
-import danix.app.Store.util.ItemErrorHandler;
-import danix.app.Store.util.ItemException;
-import danix.app.Store.util.ItemValidator;
+import danix.app.Store.util.*;
 import jakarta.validation.Valid;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
@@ -23,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -67,7 +61,7 @@ public class ItemController {
     public ResponseEntity<String> addItem(@RequestBody @Valid SaveItemDTO item,
                                                        BindingResult bindingResult) {
 
-        ItemErrorHandler.handleException(bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
 
         itemService.addItem(convertToItem(item));
 
@@ -80,7 +74,7 @@ public class ItemController {
 
         itemValidator.validate(item.getName(), bindingResult);
 
-        ItemErrorHandler.handleException(bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
 
         itemService.deleteItem(convertToItem(item));
 
@@ -92,7 +86,7 @@ public class ItemController {
                                                           BindingResult bindingResult1, BindingResult bindingResult2) {
 
         itemValidator.validate(updateItemDTO.getName(), bindingResult1);
-        ItemErrorHandler.handleException(bindingResult1);
+        ErrorHandler.handleException(bindingResult1, ExceptionType.ITEM_EXCEPTION);
 
         Validator updatedItemValidator = new Validator() {
             @Override
@@ -111,7 +105,7 @@ public class ItemController {
         };
 
         updatedItemValidator.validate(updateItemDTO.getSaveItem().getName(), bindingResult2);
-        ItemErrorHandler.handleException(bindingResult2);
+        ErrorHandler.handleException(bindingResult2, ExceptionType.ITEM_EXCEPTION);
 
         itemService.updateItem(itemService.findItemByName(updateItemDTO.getName()).get().getId(),
                 convertToItem(updateItemDTO.getSaveItem()));

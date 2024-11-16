@@ -4,10 +4,7 @@ import danix.app.Store.dto.UpdatePersonDTO;
 import danix.app.Store.models.Person;
 import danix.app.Store.services.OrderService;
 import danix.app.Store.services.PersonService;
-import danix.app.Store.util.ErrorResponse;
-import danix.app.Store.util.UpdatePasswordValidator;
-import danix.app.Store.util.UserErrorHandler;
-import danix.app.Store.util.UserException;
+import danix.app.Store.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.file.AccessDeniedException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -58,7 +54,7 @@ public class PeopleController {
                                                      BindingResult bindingResult) {
         Person currentUser = PersonService.getCurrentUser();
         personValidator.validate(updatePersonDTO, bindingResult);
-        UserErrorHandler.exceptionHandle(bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
 
         currentUser.setPassword(passwordEncoder.encode(updatePersonDTO.getNewPassword()));
         personService.updateUser(currentUser.getId(), currentUser);

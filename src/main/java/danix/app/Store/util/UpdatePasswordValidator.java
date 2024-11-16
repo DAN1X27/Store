@@ -31,8 +31,6 @@ public class UpdatePasswordValidator implements Validator {
         UpdatePersonDTO updatePersonDTO = (UpdatePersonDTO) target;
 
         if (!passwordEncoder.matches(updatePersonDTO.getOldPassword(), currentUser.getPassword())) {
-            System.out.println(currentUser.getPassword());
-            System.out.println(passwordEncoder.encode(updatePersonDTO.getOldPassword()));
             errors.rejectValue("oldPassword", "", "Incorrect password!");
         } else if (passwordEncoder.matches(updatePersonDTO.getNewPassword(), currentUser.getPassword())) {
             errors.rejectValue("newPassword", "", "The new password must be different from the old one");

@@ -46,4 +46,24 @@ create table Tokens
     id      varchar primary key,
     status  varchar                    not null,
     user_id int references person (id) not null
-)
+);
+
+create table Cart(
+     id int generated always as identity primary key ,
+     owner_id int references person(id) on delete cascade unique,
+     price double precision not null
+);
+
+create table Item_Cart(
+    cart_id int references cart(id) on delete cascade ,
+    item_id int references item(id) on delete cascade
+);
+
+create table Cart_Items(
+    id int generated always as identity primary key ,
+    cart_id int references cart(id) on delete cascade ,
+    item_id int references item(id) on delete cascade,
+    items_count int not null
+);
+
+

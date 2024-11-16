@@ -7,15 +7,9 @@ import danix.app.Store.models.Order;
 import danix.app.Store.models.OrderedItems;
 import danix.app.Store.models.Person;
 import danix.app.Store.repositories.OrderRepository;
-import danix.app.Store.security.PersonDetails;
-import danix.app.Store.util.OrderErrorHandler;
 import danix.app.Store.util.OrderException;
-import jakarta.persistence.EntityManager;
-import org.hibernate.Session;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

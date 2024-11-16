@@ -64,7 +64,7 @@ public class AdminService {
         ResponsePersonDTO responsePersonDTO = new ResponsePersonDTO();
 
         responsePersonDTO.setOrders(person.getOrders().stream()
-                .map(order -> orderService.convertToAdminOrderDTO(order)).collect(Collectors.toList()));
+                .map(orderService::convertToAdminOrderDTO).collect(Collectors.toList()));
 
         responsePersonDTO.setUsername(person.getUserName());
         responsePersonDTO.setEmail(person.getEmail());

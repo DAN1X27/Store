@@ -51,7 +51,7 @@ public class OrderController {
     public ResponseEntity<HttpStatus> create(@RequestBody @Valid OrderDTO orderDTO,
                                              BindingResult bindingResult) {
         orderValidator.validate(orderDTO, bindingResult);
-        OrderErrorHandler.exceptionHandle(bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.ORDER_EXCEPTION);
 
         orderService.createOrder(orderDTO);
 

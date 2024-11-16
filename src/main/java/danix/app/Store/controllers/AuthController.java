@@ -54,7 +54,7 @@ public class AuthController {
                                             BindingResult bindingResult) {
         authValidator.validate(authDTO, bindingResult);
 
-        UserErrorHandler.exceptionHandle(bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
 
         UsernamePasswordAuthenticationToken authToken =
                 new UsernamePasswordAuthenticationToken(authDTO.getEmail(), authDTO.getPassword());
@@ -76,7 +76,7 @@ public class AuthController {
                                                    BindingResult bindingResult) {
         validator.validate(personDTO, bindingResult);
 
-        UserErrorHandler.exceptionHandle(bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
 
         Person person = convertToPerson(personDTO);
 

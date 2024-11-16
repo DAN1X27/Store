@@ -3,6 +3,7 @@ package danix.app.Store.models;
 import jakarta.persistence.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Entity
@@ -21,8 +22,12 @@ public class Item {
 
     @Column(name = "count")
     private Integer count;
+
     @ManyToMany(mappedBy = "items")
     private List<Order> orders;
+
+    @ManyToMany(mappedBy = "items")
+    private List<Cart> carts;
 
     public Item(String name, Double price, Integer count) {
         this.name = name;
@@ -32,6 +37,13 @@ public class Item {
 
     public Item() {}
 
+    public List<Cart> getCarts() {
+        return carts;
+    }
+
+    public void setCarts(List<Cart> carts) {
+        this.carts = carts;
+    }
 
     public Integer getId() {
         return id;
@@ -71,6 +83,19 @@ public class Item {
 
     public void setCount(Integer count) {
         this.count = count;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Item item = (Item) o;
+        return Objects.equals(id, item.id) && Objects.equals(name, item.name) && Objects.equals(price, item.price) && Objects.equals(count, item.count) && Objects.equals(orders, item.orders) && Objects.equals(carts, item.carts);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, price, count, orders, carts);
     }
 
     @Override
