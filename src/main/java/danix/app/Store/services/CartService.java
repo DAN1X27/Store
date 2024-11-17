@@ -13,7 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -53,14 +56,13 @@ public class CartService {
     public void createOrder() {
         Person owner = PersonService.getCurrentUser();
         Cart cart = cartRepository.findByOwner(owner).orElseThrow(() -> new CartException("Cart is empty"));
-        List<CartItems> cartItems = cartItemsService.getByCart(cart);
+        Map<String, CartItems> cartItemsMap = getCartItems(cart);
         OrderDTO orderDTO = new OrderDTO();
         orderDTO.setItems(cart.getItems().stream().map(item -> modelMapper.map(item, ItemDTO.class)).toList());
-        for (CartItems cartItem : cartItems) {
-            for (ItemDTO itemDTO : orderDTO.getItems()) {
-                if(cartItem.getItem().getName().equals(itemDTO.getName())) {
-                    itemDTO.setCount(cartItem.getCount());
-                }
+        for (ItemDTO itemDTO : orderDTO.getItems()) {
+            CartItems cartItem = cartItemsMap.get(itemDTO.getName());
+            if (cartItem != null) {
+                itemDTO.setCount(cartItem.getCount());
             }
         }
         orderService.createOrder(orderDTO);
@@ -69,71 +71,82 @@ public class CartService {
     private Cart convertToCart(CartDTO cartDTO) {
         Person owner = PersonService.getCurrentUser();
         Optional<Cart> availableCart = cartRepository.findByOwner(owner);
-
-        if(availableCart.isEmpty()) {
-
-            Cart cart = new Cart();
-            cart.setItems(cartDTO.getItems().stream().map(item ->
-                    itemService.findItemByName(item.getName()).get()).toList());
-
+        Cart cart;
+        if (availableCart.isEmpty()) {
+            cart = new Cart();
             cart.setOwner(owner);
-
-            double sum = 0;
-
-            for (Item item : cart.getItems()) {
-                for (ItemDTO itemDTO : cartDTO.getItems()) {
-                    if (item.getName().equals(itemDTO.getName())) {
-                        CartItems cartItems = new CartItems(cart, item, itemDTO.getCount());
-
-                        cartItemsService.save(cartItems);
-                        sum += item.getPrice() * itemDTO.getCount();
-                        break;
-                    }
-                }
-            }
-            cart.setPrice(sum);
-
-            return cart;
-        }else {
-            List<CartItems> cartItems = cartItemsService.getByCart(availableCart.get());
-            double sum = 0;
-            for (ItemDTO itemDTO : cartDTO.getItems()) {
-
-                for (Item i : availableCart.get().getItems()) {
-                    if (i.getName().equals(itemDTO.getName())) {
-                        for (CartItems cartItem : cartItems) {
-                            if(cartItem.getItem().getName().equals(itemDTO.getName())) {
-                                cartItem.setCount(cartItem.getCount() + itemDTO.getCount());
-                                sum+= itemService.findItemByName(i.getName()).get().getPrice() * cartItem.getCount();
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            availableCart.get().setPrice(sum);
-            return availableCart.get();
+            cart.setItems(getItems(cart, cartDTO));
+            cart.setPrice(cartDTO.getItems().stream()
+                    .mapToDouble(item -> item.getCount() * itemService.getItemByName(item.getName()).getPrice()).sum());
+        } else {
+            cart = availableCart.get();
+            double price = updateCartItems(cartDTO, cart);
+            cart.setPrice(cart.getPrice() + price);
         }
+        return cart;
+    }
+
+
+
+    private double updateCartItems(CartDTO cartDTO, Cart cart) {
+        Map<String, CartItems> cartItemsMap = getCartItems(cart);
+        double sum = 0;
+        for (ItemDTO itemDTO : cartDTO.getItems()) {
+            CartItems cartItem = cartItemsMap.get(itemDTO.getName());
+            if (cartItem == null) {
+                Item item = itemService.getItemByName(itemDTO.getName());
+                cartItem = new CartItems(cart, item , itemDTO.getCount());
+                cartItemsService.save(cartItem);
+                cart.getItems().add(item);
+            } else {
+                cartItem.setCount(cartItem.getCount() + itemDTO.getCount());
+            }
+            sum += cartItem.getItemPrice() * itemDTO.getCount();
+        }
+        return sum;
+    }
+
+    private SaveItemDTO setPrice(SaveItemDTO itemDTO, Map<String, CartItems> cartItemsMap) {
+        CartItems cartItem = cartItemsMap.get(itemDTO.getName());
+        if (cartItem != null) {
+            itemDTO.setCount(cartItem.getCount());
+            itemDTO.setPrice(itemDTO.getPrice() * cartItem.getCount());
+        }
+        return itemDTO;
     }
 
     private ResponseCartDTO convertToCartDTO(Cart cart) {
         ResponseCartDTO cartDTO = new ResponseCartDTO();
-        cartDTO.setItems(cart.getItems().stream().map(item -> modelMapper.map(item, SaveItemDTO.class)).toList());
-
-        List<CartItems> cartItems = cartItemsService.getByCart(cart);
-
-        for (SaveItemDTO saveItemDTO : cartDTO.getItems()) {
-            for (CartItems cartItem : cartItems) {
-
-                if (saveItemDTO.getName().equals(cartItem.getItem().getName())) {
-                    double price = saveItemDTO.getPrice() * cartItem.getCount();
-                    saveItemDTO.setPrice(price);
-                    saveItemDTO.setCount(cartItem.getCount());
-                    break;
-                }
-            }
-        }
+        Map<String, CartItems> cartItemsMap = getCartItems(cart);
+        cartDTO.setItems(cart.getItems().stream()
+                .map(item -> modelMapper.map(item, SaveItemDTO.class))
+                .map(item -> setPrice(item, cartItemsMap))
+                .toList());
         cartDTO.setPrice(cart.getPrice());
         return cartDTO;
+    }
+
+    private List<Item> getItems(Cart cart, CartDTO cartDTO) {
+        Map<String, ItemDTO> items = cartDTO.getItems().stream()
+                .collect(Collectors.toMap(ItemDTO::getName, Function.identity()));
+        return cartDTO.getItems().stream()
+                .map(item -> itemService.getItemByName(item.getName()))
+                .map(item -> createCartItems(items, item, cart))
+                .collect(Collectors.toList());
+    }
+
+    private Item createCartItems(Map<String, ItemDTO> itemDTOs, Item item, Cart cart) {
+        ItemDTO itemDTO = itemDTOs.get(item.getName());
+        if (itemDTO != null) {
+            CartItems cartItems = new CartItems(cart, item, itemDTO.getCount());
+            cartItemsService.save(cartItems);
+        }
+        return item;
+    }
+
+    private Map<String, CartItems> getCartItems(Cart cart) {
+        List<CartItems> cartItems = cartItemsService.getByCart(cart);
+        return cartItems.stream()
+                .collect(Collectors.toMap(CartItems::getItemName, Function.identity()));
     }
 }

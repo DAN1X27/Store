@@ -1,6 +1,7 @@
 package danix.app.Store.util;
 
 import danix.app.Store.dto.OrderDTO;
+import danix.app.Store.repositories.ItemRepository;
 import danix.app.Store.services.ItemService;
 import danix.app.Store.services.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,9 +38,9 @@ public class OrderValidator implements Validator {
                 return;
             }
 
-            if(itemService.findItemByName(item.getName()).isEmpty()) {
+            if((item.getName()).isEmpty()) {
                 errors.rejectValue("items", "", "Item " + item.getName() + " not found.");
-            } else if (item.getCount() > itemService.findItemByName(item.getName()).get().getCount()) {
+            } else if (item.getCount() > itemService.getItemByName(item.getName()).getCount()) {
                 errors.rejectValue("items", "", "The count number of items is more than what is in stock");
             }
         });

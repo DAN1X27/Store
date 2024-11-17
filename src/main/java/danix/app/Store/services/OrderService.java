@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -111,35 +112,29 @@ public class OrderService {
         orderRepository.save(convertToOrder(order));
     }
 
-    @Transactional
-    public void updateOrderReady(Integer id, Order order) {
-        order.setId(id);
-        orderRepository.save(order);
+    private List<Item> getItems(OrderDTO orderDTO, Order order) {
+        Map<String, ItemDTO> itemDTOs = orderDTO.getItems().stream()
+                .collect(Collectors.toMap(ItemDTO::getName, Function.identity()));
+
+        return orderDTO.getItems().stream()
+                .map(item -> itemService.getItemByName(item.getName()))
+                .map(item -> setCount(item, itemDTOs, order))
+                .collect(Collectors.toList());
+    }
+
+    private Item setCount(Item item, Map<String, ItemDTO> itemDTOs, Order order) {
+        ItemDTO itemDTO = itemDTOs.get(item.getName());
+        if(itemDTO != null) {
+            item.setCount(item.getCount() - itemDTO.getCount());
+            OrderedItems orderedItems = new OrderedItems(order, item, itemDTO.getCount());
+            orderedItemsService.save(orderedItems);
+        }
+        return item;
     }
 
     private Order convertToOrder(OrderDTO orderDTO) {
         Order order = new Order();
-
-        order.setItems(orderDTO.getItems().stream().map(item ->
-                itemService.findItemByName(item.getName()).get()).collect(Collectors.toList()));
-
         Person owner = PersonService.getCurrentUser();
-
-        double sum = 0;
-
-        for (Item item : order.getItems()) {
-
-            for (ItemDTO itemDTO : orderDTO.getItems()) {
-                if (item.getName().equals(itemDTO.getName())) {
-                    OrderedItems orderedItems = new OrderedItems(order, item, itemDTO.getCount());
-                    orderedItemsService.save(orderedItems);
-
-                    item.setCount(item.getCount() - itemDTO.getCount());
-                    sum+=itemDTO.getCount() * item.getPrice();
-                    break;
-                }
-            }
-        }
 
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.DAY_OF_MONTH, 2);
@@ -151,8 +146,9 @@ public class OrderService {
         order.setOrderReadyDate(calendar.getTime());
         order.setCreatedAt(LocalDateTime.now());
         order.setReady(false);
-        order.setPrice(sum);
         order.setOwner(owner);
+        order.setItems(getItems(orderDTO, order));
+        order.setPrice(orderDTO.getItems().stream().mapToDouble(item -> item.getCount() * itemService.getItemByName(item.getName()).getPrice()).sum());
 
         return order;
     }
@@ -160,37 +156,9 @@ public class OrderService {
     public ResponseOrderDTO convertToOrderDTO(Order order) {
         ResponseOrderDTO responseOrderDTO = new ResponseOrderDTO();
 
-        responseOrderDTO.setItems(order.getItems().stream().map(item ->
-                modelMapper.map(item, SaveItemDTO.class)).collect(Collectors.toList()));
-
-        List<OrderedItems> orderedItems = orderedItemsService.getByOrder(order);
-
-        for (SaveItemDTO itemDTO : responseOrderDTO.getItems()) {
-            for (OrderedItems orderedItem : orderedItems) {
-                if (orderedItem.getItem().getName().equals(itemDTO.getName())) {
-                    double price = itemDTO.getPrice() * orderedItem.getCount();
-                    itemDTO.setPrice(price);
-                    itemDTO.setCount(orderedItem.getCount());
-                    break;
-                }
-            }
-        }
-
-        Date date = new Date();
-        if(order.getOrderReadyDate().before(date)) {
-
-            if(order.getStorageDate().before(date)) {
-                orderRepository.delete(order);
-
-            }else {
-                order.setReady(true);
-                updateOrderReady(order.getId(), order);
-                responseOrderDTO.setIsReady("Order is ready. You can take this.");
-            }
-
-        }else {
-            responseOrderDTO.setIsReady("The order is not ready yet.");
-        }
+        responseOrderDTO.setItems(getItems(order));
+        responseOrderDTO.setIsReady(order.isReady()
+                ? "Order is ready. You can take this." : "The order is not ready yet.");
 
         responseOrderDTO.setStorageDate(order.getStorageDate());
         responseOrderDTO.setOrderReadyDate(order.getOrderReadyDate());
@@ -200,43 +168,33 @@ public class OrderService {
         return responseOrderDTO;
     }
 
+    private List<SaveItemDTO> getItems(Order order) {
+        Map<String, OrderedItems> orderedItems = orderedItemsService.getByOrder(order).stream()
+                .collect(Collectors.toMap(OrderedItems::getName, Function.identity()));
+
+        return order.getItems().stream()
+                .map(item -> modelMapper.map(item, SaveItemDTO.class))
+                .map(item -> setPrice(item, orderedItems))
+                .collect(Collectors.toList());
+    }
+
+    private SaveItemDTO setPrice(SaveItemDTO saveItemDTO, Map<String, OrderedItems> orderedItems) {
+        OrderedItems orderedItem = orderedItems.get(saveItemDTO.getName());
+
+        if(orderedItem != null) {
+            saveItemDTO.setPrice(saveItemDTO.getPrice() * orderedItem.getCount());
+            saveItemDTO.setCount(orderedItem.getCount());
+        }
+
+        return saveItemDTO;
+    }
+
     public AdminOrderDTO convertToAdminOrderDTO(Order order) {
         AdminOrderDTO adminOrderDTO = new AdminOrderDTO();
-        adminOrderDTO.setItems(order.getItems().stream().map(item ->
-                modelMapper.map(item, SaveItemDTO.class)).collect(Collectors.toList()));
+        adminOrderDTO.setItems(getItems(order));
 
-        List<OrderedItems> orderedItems = orderedItemsService.getByOrder(order);
-
-        for (SaveItemDTO itemDTO : adminOrderDTO.getItems()) {
-
-            for (OrderedItems orderedItem : orderedItems) {
-
-                if (orderedItem.getItem().getName().equals(itemDTO.getName())) {
-                    double price = orderedItem.getItem().getPrice() * orderedItem.getCount();
-                    itemDTO.setPrice(price);
-                    itemDTO.setCount(orderedItem.getCount());
-                    break;
-                }
-
-            }
-        }
-
-        Date date = new Date();
-
-        if (order.getOrderReadyDate().before(date)) {
-
-            if(order.getStorageDate().before(date)) {
-                orderRepository.delete(order);
-            }else {
-                order.setReady(true);
-                updateOrderReady(order.getId(), order);
-                adminOrderDTO.setIsReady("The order is ready.");
-            }
-
-        } else {
-            adminOrderDTO.setIsReady("The order is not ready yet");
-        }
-
+        adminOrderDTO.setIsReady(order.isReady()
+                ? "Order is ready. You can take this." : "The order is not ready yet.");
         adminOrderDTO.setStorageDate(order.getStorageDate());
         adminOrderDTO.setOrderReadyDate(order.getOrderReadyDate());
         adminOrderDTO.setId(order.getId());

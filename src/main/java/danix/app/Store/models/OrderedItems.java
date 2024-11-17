@@ -10,7 +10,7 @@ public class OrderedItems {
     @Column(name = "id")
     private Integer id;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.PERSIST)
     @JoinColumn(name = "order_id", referencedColumnName = "id")
     private Order order;
 
@@ -25,6 +25,14 @@ public class OrderedItems {
         this.order = order;
         this.item = item;
         this.count = count;
+    }
+
+    public String getName() {
+        return item.getName();
+    }
+
+    public double getPrice() {
+       return item.getPrice() * item.getCount();
     }
 
     public OrderedItems() {}

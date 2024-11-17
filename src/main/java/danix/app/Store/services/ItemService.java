@@ -2,6 +2,7 @@ package danix.app.Store.services;
 
 import danix.app.Store.models.Item;
 import danix.app.Store.repositories.ItemRepository;
+import danix.app.Store.util.ItemException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +26,8 @@ public class ItemService {
         return itemRepository.findAll();
     }
 
-    public Optional<Item> findItemByName(String name) {
-        return itemRepository.findByName(name);
+    public Item getItemByName(String name) {
+        return itemRepository.findByName(name).orElseThrow(() -> new ItemException("Item not found"));
     }
 
     public List<Item> getAllItemsSortedByPrice() {
@@ -40,7 +41,7 @@ public class ItemService {
 
     @Transactional
     public void addItem(Item item) {
-        Optional<Item> item1 = findItemByName(item.getName());
+        Optional<Item> item1 = itemRepository.findByName(item.getName());
 
         if(item1.isEmpty()){
             itemRepository.save(item);
@@ -54,7 +55,7 @@ public class ItemService {
         if (item.getCount() == 0) {
             itemRepository.delete(item);
         }else {
-            Optional<Item> item1 = findItemByName(item.getName());
+            Optional<Item> item1 = itemRepository.findByName(item.getName());
             Integer count = item1.get().getCount();
             item1.get().setCount(--count);
         }
