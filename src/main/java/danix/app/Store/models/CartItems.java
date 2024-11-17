@@ -11,7 +11,7 @@ public class CartItems {
     @Column(name = "id")
     private int id;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.PERSIST)
     @JoinColumn(name = "cart_id", referencedColumnName = "id")
     private Cart cart;
 
@@ -60,5 +60,13 @@ public class CartItems {
 
     public void setCount(int count) {
         this.count = count;
+    }
+
+    public String getItemName() {
+        return item.getName();
+    }
+
+    public double getItemPrice() {
+        return item.getPrice();
     }
 }

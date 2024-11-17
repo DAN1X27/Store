@@ -125,8 +125,8 @@ public class OrderService {
     private Item setCount(Item item, Map<String, ItemDTO> itemDTOs, Order order) {
         ItemDTO itemDTO = itemDTOs.get(item.getName());
         if(itemDTO != null) {
-            item.setCount(item.getCount()  - itemDTO.getCount());
-            OrderedItems orderedItems = new OrderedItems(order, item, item.getCount());
+            item.setCount(item.getCount() - itemDTO.getCount());
+            OrderedItems orderedItems = new OrderedItems(order, item, itemDTO.getCount());
             orderedItemsService.save(orderedItems);
         }
         return item;
@@ -148,7 +148,7 @@ public class OrderService {
         order.setReady(false);
         order.setOwner(owner);
         order.setItems(getItems(orderDTO, order));
-        order.setPrice(order.getItems().stream().mapToDouble(item -> item.getCount() * item.getPrice()).sum());
+        order.setPrice(orderDTO.getItems().stream().mapToDouble(item -> item.getCount() * itemService.getItemByName(item.getName()).getPrice()).sum());
 
         return order;
     }
@@ -157,14 +157,8 @@ public class OrderService {
         ResponseOrderDTO responseOrderDTO = new ResponseOrderDTO();
 
         responseOrderDTO.setItems(getItems(order));
-        responseOrderDTO.setIsReady(order.getOrderReadyDate().before(new Date())
+        responseOrderDTO.setIsReady(order.isReady()
                 ? "Order is ready. You can take this." : "The order is not ready yet.");
-
-        // TODO: move to cron job
-        if(order.getStorageDate().before(new Date())) {
-            orderRepository.delete(order);
-
-        }
 
         responseOrderDTO.setStorageDate(order.getStorageDate());
         responseOrderDTO.setOrderReadyDate(order.getOrderReadyDate());
@@ -188,7 +182,7 @@ public class OrderService {
         OrderedItems orderedItem = orderedItems.get(saveItemDTO.getName());
 
         if(orderedItem != null) {
-            saveItemDTO.setPrice(orderedItem.getPrice());
+            saveItemDTO.setPrice(saveItemDTO.getPrice() * orderedItem.getCount());
             saveItemDTO.setCount(orderedItem.getCount());
         }
 
@@ -196,19 +190,11 @@ public class OrderService {
     }
 
     public AdminOrderDTO convertToAdminOrderDTO(Order order) {
-
         AdminOrderDTO adminOrderDTO = new AdminOrderDTO();
         adminOrderDTO.setItems(getItems(order));
 
-        adminOrderDTO.setIsReady(order.getOrderReadyDate().before(new Date())
+        adminOrderDTO.setIsReady(order.isReady()
                 ? "Order is ready. You can take this." : "The order is not ready yet.");
-
-        // TODO: move to cron job
-        if(order.getStorageDate().before(new Date())) {
-            orderRepository.delete(order);
-
-        }
-
         adminOrderDTO.setStorageDate(order.getStorageDate());
         adminOrderDTO.setOrderReadyDate(order.getOrderReadyDate());
         adminOrderDTO.setId(order.getId());
