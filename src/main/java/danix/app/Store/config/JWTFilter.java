@@ -64,6 +64,9 @@ public class JWTFilter extends OncePerRequestFilter {
                 }catch (JWTVerificationException e) {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST,
                             "Invalid JWT token");
+                }catch (IllegalStateException e) {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                            e.getMessage());
                 }
             }
         }

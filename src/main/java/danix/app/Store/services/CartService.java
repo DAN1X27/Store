@@ -85,9 +85,7 @@ public class CartService {
         }
         return cart;
     }
-
-
-
+    
     private double updateCartItems(CartDTO cartDTO, Cart cart) {
         Map<String, CartItems> cartItemsMap = getCartItems(cart);
         double sum = 0;

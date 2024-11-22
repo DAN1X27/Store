@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class OrderReadyStatusUpdateTask {
+
     private final OrderRepository orderRepository;
 
     @Autowired

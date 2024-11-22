@@ -1,13 +1,16 @@
 package danix.app.Store.controllers;
 
+import danix.app.Store.dto.RecoverPasswordDTO;
 import danix.app.Store.dto.UpdatePersonDTO;
 import danix.app.Store.models.Person;
+import danix.app.Store.services.EmailSenderServiceImpl;
 import danix.app.Store.services.OrderService;
 import danix.app.Store.services.PersonService;
 import danix.app.Store.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +23,6 @@ import java.util.Map;
 public class PeopleController {
 
     private final OrderService orderService;
-
     private final PasswordEncoder passwordEncoder;
     private final PersonService personService;
     private final UpdatePasswordValidator personValidator;
@@ -33,6 +35,17 @@ public class PeopleController {
         this.passwordEncoder = passwordEncoder;
         this.personService = personService;
         this.personValidator = personValidator;
+    }
+
+    @PatchMapping("/recoverPassword")
+    public ResponseEntity<String> recoverPassword(@RequestBody RecoverPasswordDTO recoverPasswordDTO,
+                                                  BindingResult bindingResult) {
+        ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
+        Person user = personService.getUserByEmail(recoverPasswordDTO.getEmail())
+                .orElseThrow(() -> new UserException("User not found"));
+        user.setPassword(passwordEncoder.encode(recoverPasswordDTO.getNewPassword()));
+        personService.updateUser(user.getId(), user);
+        return ResponseEntity.ok("Password recovered");
     }
 
     @GetMapping("/showUserInfo")

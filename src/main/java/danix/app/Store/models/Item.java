@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 @Entity
 @Table(name = "Item")
@@ -29,6 +28,21 @@ public class Item {
     @ManyToMany(mappedBy = "items")
     private List<Cart> carts;
 
+    @OneToMany(mappedBy = "item")
+    private List<ItemReviews> reviews;
+
+    @Enumerated(EnumType.STRING)
+    private CategoryType category;
+
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "rating")
+    private Double rating;
+
+    @OneToMany(mappedBy = "item")
+    private List<ItemGrade> itemGrades;
+
     public Item(String name, Double price, Integer count) {
         this.name = name;
         this.price = price;
@@ -36,6 +50,46 @@ public class Item {
     }
 
     public Item() {}
+
+    public List<ItemGrade> getItemGrades() {
+        return itemGrades;
+    }
+
+    public void setItemGrades(List<ItemGrade> itemGrades) {
+        this.itemGrades = itemGrades;
+    }
+
+    public Double getRating() {
+        return rating;
+    }
+
+    public void setRating(Double rating) {
+        this.rating = rating;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public CategoryType getCategory() {
+        return category;
+    }
+
+    public void setCategory(CategoryType category) {
+        this.category = category;
+    }
+
+    public List<ItemReviews> getReviews() {
+        return reviews;
+    }
+
+    public void setReviews(List<ItemReviews> reviews) {
+        this.reviews = reviews;
+    }
 
     public List<Cart> getCarts() {
         return carts;

@@ -9,12 +9,15 @@ create table Person
     is_banned  boolean   not null
 );
 
-create table Item
+create table item
 (
-    id       int generated always as identity primary key,
-    username varchar not null unique,
-    count    int check ( count >= 0),
-    price    double precision
+    id          integer generated always as identity primary key,
+    name        varchar not null unique,
+    count       integer check (count >= 0),
+    price       double precision,
+    category    varchar not null,
+    description varchar not null,
+    rating      double precision not null
 );
 
 create table Orders
@@ -48,22 +51,56 @@ create table Tokens
     user_id int references person (id) not null
 );
 
-create table Cart(
-     id int generated always as identity primary key ,
-     owner_id int references person(id) on delete cascade unique,
-     price double precision not null
+create table Cart
+(
+    id       int generated always as identity primary key,
+    owner_id int references person (id) on delete cascade unique,
+    price    double precision not null
 );
 
-create table Item_Cart(
-    cart_id int references cart(id) on delete cascade ,
-    item_id int references item(id) on delete cascade
+create table Item_Cart
+(
+    cart_id int references cart (id) on delete cascade,
+    item_id int references item (id) on delete cascade
 );
 
-create table Cart_Items(
-    id int generated always as identity primary key ,
-    cart_id int references cart(id) on delete cascade ,
-    item_id int references item(id) on delete cascade,
+create table Cart_Items
+(
+    id          int generated always as identity primary key,
+    cart_id     int references cart (id) on delete cascade,
+    item_id     int references item (id) on delete cascade,
     items_count int not null
 );
+
+create table items_reviews
+(
+    id         integer generated always as identity primary key,
+    item_id    integer not null references item (id) on delete cascade,
+    owner_id   integer not null references person on delete cascade,
+    likes      integer not null,
+    comment    varchar not null,
+    created_at date    not null,
+    grade      integer not null
+);
+
+create table liked_reviews
+(
+    id        integer generated always as identity primary key,
+    owner_id  integer references person (id) on delete cascade,
+    review_id integer references items_reviews (id) on delete cascade
+);
+
+create table items_grades
+(
+    id       integer generated always as identity primary key,
+    item_id  integer references item (id) on delete cascade,
+    grade    integer not null,
+    owner_id integer references person (id)
+);
+
+
+
+
+
 
 

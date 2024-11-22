@@ -26,6 +26,8 @@ public class ErrorHandler {
                         throw new OrderException(message.toString());
                 case CART_EXCEPTION ->
                     throw new CartException(message.toString());
+                case REVIEW_EXCEPTION ->
+                    throw new ReviewException(message.toString());
             }
         }
     }

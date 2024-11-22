@@ -1,8 +1,7 @@
 package danix.app.Store.controllers;
 
-import danix.app.Store.dto.DeleteItemDTO;
-import danix.app.Store.dto.SaveItemDTO;
-import danix.app.Store.dto.UpdateItemDTO;
+import danix.app.Store.dto.*;
+import danix.app.Store.models.CategoryType;
 import danix.app.Store.models.Item;
 import danix.app.Store.repositories.ItemRepository;
 import danix.app.Store.services.ItemService;
@@ -26,93 +25,75 @@ import java.util.stream.Collectors;
 public class ItemController {
 
     private final ItemService itemService;
-
-    private final ModelMapper modelMapper;
-
     private final ItemValidator itemValidator;
     private final ItemRepository itemRepository;
 
     @Autowired
-    public ItemController(ItemService itemService, ModelMapper modelMapper, ItemValidator itemValidator, ItemRepository itemRepository) {
+    public ItemController(ItemService itemService, ItemValidator itemValidator, ItemRepository itemRepository) {
         this.itemService = itemService;
-        this.modelMapper = modelMapper;
         this.itemValidator = itemValidator;
         this.itemRepository = itemRepository;
     }
 
     @GetMapping("/getAll")
-    public List<SaveItemDTO> getAllItems(@RequestParam(value = "sort", required = false) boolean sort) {
-
-        if(sort) {
-            return itemService.getAllItemsSortedByPrice().stream().map(this::convertToItemDTO).collect(Collectors.toList());
+    public List<ResponseItemDTO> getAllItems(@RequestParam(value = "sort-by-price", required = false) boolean sort,
+                                             @RequestParam(value = "sort-by-rating", required = false) boolean sortByRating,
+                                             @RequestBody Map<String, String> category) {
+        String categoryName = category.get("category");
+        if (categoryName == null) {
+            throw new ItemException("Incorrect category");
         }
 
-        return itemService.getALlItems().stream().map(this::convertToItemDTO).collect(Collectors.toList());
+        if(sort) {
+            return itemService.getAllItemsSortedByPrice(categoryName);
+        } else if (sortByRating) {
+            return itemService.getAllSortedByRating(categoryName);
+        }
+        return itemService.getAllItems(categoryName);
     }
 
     @GetMapping("/findItem")
-    public SaveItemDTO findItem(@RequestBody Map<String, String> item) {
-
+    public FindItemDTO findItem(@RequestBody Map<String, String> item) {
         requestHelper(item);
-
-        SaveItemDTO requestItem = convertToItemDTO(itemService.getItemByName(item.get("name")));
-
-        return requestItem;
+        return itemService.findItemByName(item.get("name"));
     }
 
-    @PostMapping("/addItem")
+    @PostMapping("/addGrade")
+    public ResponseEntity<String> addGrade(@RequestBody @Valid AddGradeDTO grade,
+                                           BindingResult bindingResult) {
+        ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
+        Item item = itemService.getItemByName(grade.getItemName());
+        itemService.addGradeToItem(grade.getGrade(), item);
+        return ResponseEntity.ok("Grade successfully added");
+    }
+
+    @PostMapping("/add")
     public ResponseEntity<String> addItem(@RequestBody @Valid SaveItemDTO item,
                                                        BindingResult bindingResult) {
-
         ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
-
-        itemService.addItem(convertToItem(item));
-
+        itemService.addItem(item);
         return ResponseEntity.ok("Item added: " + item.getName());
     }
 
     @PatchMapping("/deleteItem")
-    public ResponseEntity<String> deleteItem(@RequestBody @Valid DeleteItemDTO item,
+    public ResponseEntity<String> deleteItem(@RequestBody @Valid ItemDTO item,
                                                           BindingResult bindingResult) {
 
         itemValidator.validate(item.getName(), bindingResult);
-
         ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
-
-        itemService.deleteItem(convertToItem(item));
-
+        itemService.deleteItem(item);
         return ResponseEntity.ok("Deleted successfully for item: " + item.getName());
     }
 
     @PatchMapping("/updateItem")
     public ResponseEntity<String> updateItem(@RequestBody @Valid UpdateItemDTO updateItemDTO,
-                                                          BindingResult bindingResult1, BindingResult bindingResult2) {
-
-        itemValidator.validate(updateItemDTO.getName(), bindingResult1);
-        ErrorHandler.handleException(bindingResult1, ExceptionType.ITEM_EXCEPTION);
-
-        Validator updatedItemValidator = new Validator() {
-            @Override
-            public boolean supports(Class<?> clazz) {
-                return String.class.equals(clazz);
-            }
-
-            @Override
-            public void validate(Object target, Errors errors) {
-                String itemName = (String) target;
-
-                if(itemRepository.findByName(itemName).isPresent()) {
-                    errors.rejectValue("saveItem", "", "Item with this name already exist.");
-                }
-            }
-        };
-
-        updatedItemValidator.validate(updateItemDTO.getSaveItem().getName(), bindingResult2);
-        ErrorHandler.handleException(bindingResult2, ExceptionType.ITEM_EXCEPTION);
-
-        itemService.updateItem(itemService.getItemByName(updateItemDTO.getName()).getId(),
-                convertToItem(updateItemDTO.getSaveItem()));
-
+                                                          BindingResult bindingResult) {
+        itemValidator.validate(updateItemDTO.getName(), bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
+        itemRepository.findByName(updateItemDTO.getSaveItem().getName()).ifPresent(item -> {
+            throw new ItemException("Item " + updateItemDTO.getSaveItem().getName() + "already exists");
+        });
+        itemService.updateItem(itemService.getItemByName(updateItemDTO.getName()).getId(), updateItemDTO.getSaveItem());
         return ResponseEntity.ok().body("Updated successfully " + updateItemDTO.getName() + " to " + updateItemDTO.getSaveItem());
     }
 
@@ -122,28 +103,15 @@ public class ItemController {
                 e.getMessage(),
                 System.currentTimeMillis()
         );
-
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     private void requestHelper(Map<String, String> item) {
-        if(!item.containsKey("name")) {
+        if (!item.containsKey("name")) {
             throw new ItemException("Incorrect key");
 
-        }else if(itemRepository.findByName(item.get("name")).isEmpty()) {
+        }else if (itemRepository.findByName(item.get("name")).isEmpty()) {
             throw new ItemException("Item not found");
         }
-    }
-
-    private Item convertToItem(SaveItemDTO saveItemDTO) {
-        return modelMapper.map(saveItemDTO, Item.class);
-    }
-
-    private Item convertToItem(DeleteItemDTO deleteItemDTO) {
-        return modelMapper.map(deleteItemDTO, Item.class);
-    }
-
-    private SaveItemDTO convertToItemDTO(Item item) {
-        return modelMapper.map(item, SaveItemDTO.class);
     }
 }

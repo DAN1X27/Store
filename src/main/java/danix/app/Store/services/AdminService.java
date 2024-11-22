@@ -41,23 +41,29 @@ public class AdminService {
     }
 
     @Transactional
-    public void banUser(String username) {
-       Person person = personRepository.findByUserName(username)
-               .orElseThrow(() -> new UserException("User not found"));
+    public void banUser(Person person) {
 
+       if (person.isBanned()) {
+           throw new UserException("User is already banned");
+       }
        for (Token token : tokensService.getAllUserTokens(person)) {
            token.setStatus(TokenStatus.REVOKED);
        }
-
        person.setBanned(true);
+
     }
 
     @Transactional
-    public void unbanUser(String username) {
-        Person person = personRepository.findByUserName(username)
-                .orElseThrow(() -> new UserException("User not found"));
+    public void unbanUser(Person person) {
 
+        if (!person.isBanned()) {
+            throw new UserException("User is not banned");
+        }
+        for (Token token : tokensService.getAllUserTokens(person)) {
+            token.setStatus(TokenStatus.ISSUED);
+        }
         person.setBanned(false);
+
     }
 
     private ResponsePersonDTO convertToResponsePersonDTO(Person person) {

@@ -104,6 +104,10 @@ public class Order {
         this.owner = owner;
     }
 
+    public String getOwnerName() {
+        return this.owner.getUserName();
+    }
+
     @Override
     public String toString() {
         return "Order{" +

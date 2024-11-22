@@ -1,6 +1,5 @@
 package danix.app.Store.services;
 
-import danix.app.Store.dao.OrderDAO;
 import danix.app.Store.dto.*;
 import danix.app.Store.models.Item;
 import danix.app.Store.models.Order;
@@ -25,29 +24,27 @@ public class OrderService {
     private final ModelMapper modelMapper;
     private final OrderedItemsService orderedItemsService;
     private final PersonService personService;
-    private final OrderDAO orderDAO;
 
     @Autowired
     public OrderService(OrderRepository orderRepository, ItemService itemService, ModelMapper modelMapper,
-                        OrderedItemsService orderedItemsService, PersonService personService, OrderDAO orderDAO) {
+                        OrderedItemsService orderedItemsService, PersonService personService) {
         this.orderRepository = orderRepository;
         this.itemService = itemService;
         this.modelMapper = modelMapper;
         this.orderedItemsService = orderedItemsService;
         this.personService = personService;
-        this.orderDAO = orderDAO;
     }
 
     @Transactional
     public List<AdminOrderDTO> getAllOrders() {
-        return orderDAO.getAllOrders().stream().map(this::convertToAdminOrderDTO).collect(Collectors.toList());
+        return orderRepository.findAllOrders().stream().map(this::convertToAdminOrderDTO).collect(Collectors.toList());
     }
 
     @Transactional
     public List<AdminOrderDTO> getAllUserOrdersForAdmin(String userName) {
         Person person = personService.getUserByUserName(userName).get();
 
-        return orderDAO.findAllByOwner(person).stream()
+        return orderRepository.finByOwner(person).stream()
                 .map(this::convertToAdminOrderDTO).collect(Collectors.toList());
     }
 
@@ -55,7 +52,7 @@ public class OrderService {
     public List<ResponseOrderDTO> getAllUserOrders() {
         Person owner = PersonService.getCurrentUser();
 
-        return orderDAO.findAllByOwner(owner).stream()
+        return orderRepository.finByOwner(owner).stream()
                 .map(this::convertToOrderDTO).collect(Collectors.toList());
     }
 
@@ -136,14 +133,14 @@ public class OrderService {
         Order order = new Order();
         Person owner = PersonService.getCurrentUser();
 
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.DAY_OF_MONTH, 2);
+        Calendar readyDate = Calendar.getInstance();
+        readyDate.add(Calendar.DAY_OF_MONTH, 2);
 
-        Calendar calendar1 = Calendar.getInstance();
-        calendar1.add(Calendar.DAY_OF_MONTH, 16);
+        Calendar storageDate = Calendar.getInstance();
+        storageDate.add(Calendar.DAY_OF_MONTH, 16);
 
-        order.setStorageDate(calendar1.getTime());
-        order.setOrderReadyDate(calendar.getTime());
+        order.setStorageDate(storageDate.getTime());
+        order.setOrderReadyDate(readyDate.getTime());
         order.setCreatedAt(LocalDateTime.now());
         order.setReady(false);
         order.setOwner(owner);
@@ -159,7 +156,6 @@ public class OrderService {
         responseOrderDTO.setItems(getItems(order));
         responseOrderDTO.setIsReady(order.isReady()
                 ? "Order is ready. You can take this." : "The order is not ready yet.");
-
         responseOrderDTO.setStorageDate(order.getStorageDate());
         responseOrderDTO.setOrderReadyDate(order.getOrderReadyDate());
         responseOrderDTO.setSum(order.getPrice());
@@ -171,7 +167,6 @@ public class OrderService {
     private List<SaveItemDTO> getItems(Order order) {
         Map<String, OrderedItems> orderedItems = orderedItemsService.getByOrder(order).stream()
                 .collect(Collectors.toMap(OrderedItems::getName, Function.identity()));
-
         return order.getItems().stream()
                 .map(item -> modelMapper.map(item, SaveItemDTO.class))
                 .map(item -> setPrice(item, orderedItems))
@@ -180,19 +175,16 @@ public class OrderService {
 
     private SaveItemDTO setPrice(SaveItemDTO saveItemDTO, Map<String, OrderedItems> orderedItems) {
         OrderedItems orderedItem = orderedItems.get(saveItemDTO.getName());
-
         if(orderedItem != null) {
             saveItemDTO.setPrice(saveItemDTO.getPrice() * orderedItem.getCount());
             saveItemDTO.setCount(orderedItem.getCount());
         }
-
         return saveItemDTO;
     }
 
     public AdminOrderDTO convertToAdminOrderDTO(Order order) {
         AdminOrderDTO adminOrderDTO = new AdminOrderDTO();
         adminOrderDTO.setItems(getItems(order));
-
         adminOrderDTO.setIsReady(order.isReady()
                 ? "Order is ready. You can take this." : "The order is not ready yet.");
         adminOrderDTO.setStorageDate(order.getStorageDate());
