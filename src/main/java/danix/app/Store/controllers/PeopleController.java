@@ -3,7 +3,6 @@ package danix.app.Store.controllers;
 import danix.app.Store.dto.RecoverPasswordDTO;
 import danix.app.Store.dto.UpdatePersonDTO;
 import danix.app.Store.models.Person;
-import danix.app.Store.services.EmailSenderServiceImpl;
 import danix.app.Store.services.OrderService;
 import danix.app.Store.services.PersonService;
 import danix.app.Store.util.*;
@@ -35,17 +34,6 @@ public class PeopleController {
         this.passwordEncoder = passwordEncoder;
         this.personService = personService;
         this.personValidator = personValidator;
-    }
-
-    @PatchMapping("/recoverPassword")
-    public ResponseEntity<String> recoverPassword(@RequestBody RecoverPasswordDTO recoverPasswordDTO,
-                                                  BindingResult bindingResult) {
-        ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
-        Person user = personService.getUserByEmail(recoverPasswordDTO.getEmail())
-                .orElseThrow(() -> new UserException("User not found"));
-        user.setPassword(passwordEncoder.encode(recoverPasswordDTO.getNewPassword()));
-        personService.updateUser(user.getId(), user);
-        return ResponseEntity.ok("Password recovered");
     }
 
     @GetMapping("/showUserInfo")

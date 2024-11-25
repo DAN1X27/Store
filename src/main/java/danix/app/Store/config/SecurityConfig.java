@@ -41,8 +41,8 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth ->
                 auth.requestMatchers("/items/addItem", "/items/deleteItem", "/items/updateItem",
                                 "/orders/getAll").hasRole("ADMIN")
-                        .requestMatchers("/auth/registration", "/auth/login", "/error", "/items/findItem",
-                                "/items/getAll").permitAll()
+                        .requestMatchers("/auth/registration", "/auth/forgotPassword", "/auth/recoverPassword", "/auth/login", "/error", "/items/findItem",
+                                "/items/getAll", "/auth/register-user").permitAll()
                         .anyRequest().hasAnyRole("USER", "ADMIN")
         );
 
