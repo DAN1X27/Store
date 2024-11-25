@@ -16,7 +16,7 @@ public class EmailSenderService {
 
     public void sendMessage(String to, String text) {
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("danikcheban2007@gmail.com"); //enter your email
+        message.setFrom(""); //enter your email
         message.setTo(to);
         message.setText(text);
         message.setSubject("Spring-store-application");
