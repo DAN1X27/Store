@@ -33,7 +33,8 @@ create table Orders
 create table Item_Order
 (
     item_id  int references item (id) on delete cascade,
-    order_id int references Orders (id) on delete cascade
+    order_id int references Orders (id) on delete cascade,
+    primary key (item_id, order_id)
 );
 
 create table Ordered_Items
@@ -61,7 +62,8 @@ create table Cart
 create table Item_Cart
 (
     cart_id int references cart (id) on delete cascade,
-    item_id int references item (id) on delete cascade
+    item_id int references item (id) on delete cascade,
+    primary key (cart_id, item_id)
 );
 
 create table Cart_Items
