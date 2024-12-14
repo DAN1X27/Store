@@ -1,41 +1,32 @@
 package danix.app.Store.task;
 
-import danix.app.Store.services.PersonService;
+import danix.app.Store.models.User;
+import danix.app.Store.repositories.EmailKeysRepository;
+import danix.app.Store.repositories.UsersRepository;
+import danix.app.Store.services.UserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Component
+@RequiredArgsConstructor
 public class CleanTemporalResourcesTask {
+    private final UsersRepository usersRepository;
+    private final EmailKeysRepository emailKeysRepository;
 
+    @Transactional
     @Scheduled(cron = "@hourly")
-    public void deleteExpiredPasswordRecoverKeys() {
-        for (String email : PersonService.emailPasswordRecoverKeysMap.keySet()) {
-            if (PersonService.emailPasswordRecoverKeysMap.get(email).getExpiredAt().before(new Date())) {
-                PersonService.emailPasswordRecoverKeysMap.remove(email);
-            }
-        }
-        System.out.println("Expired keys deleted!");
+    public void deleteTemporalUsers() {
+        usersRepository.deleteAllByStatusAndCreatedAtBefore(User.Status.TEMPORAL_REGISTERED, LocalDateTime.now().minusDays(1));
     }
 
+    @Transactional
     @Scheduled(cron = "@hourly")
-    public void deleteExpiredTemporalUsers() {
-        for (String email : PersonService.temporalUsersMap.keySet()) {
-            if (PersonService.temporalUsersMap.get(email).getExpiredTime().before(new Date())) {
-                PersonService.temporalUsersMap.remove(email);
-            }
-        }
-        System.out.println("Expired temporal users deleted!");
-    }
-
-    @Scheduled(cron = "@hourly")
-    public void deleteExpiredRegistrationKeys() {
-        for (String email : PersonService.emailRegistrationKeysMap.keySet()) {
-            if (PersonService.emailRegistrationKeysMap.get(email).getExpiredAt().before(new Date())) {
-                PersonService.emailRegistrationKeysMap.remove(email);
-            }
-        }
-        System.out.println("Expired registration keys deleted!");
+    public void deleteExpiredEmailKeys() {
+        emailKeysRepository.deleteExpiredEmailKeys();
     }
 }

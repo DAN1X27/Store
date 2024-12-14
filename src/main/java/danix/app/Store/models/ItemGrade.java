@@ -1,9 +1,15 @@
 package danix.app.Store.models;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "Items_Grades")
+@Getter
+@Setter
+@NoArgsConstructor
 public class ItemGrade {
 
     @Id
@@ -17,48 +23,14 @@ public class ItemGrade {
 
     @ManyToOne()
     @JoinColumn(name = "owner_id", referencedColumnName = "id")
-    private Person owner;
+    private User owner;
 
     @Column(name = "grade")
     private int grade;
 
-    public ItemGrade(Item item, int grade, Person owner) {
+    public ItemGrade(Item item, int grade, User owner) {
         this.item = item;
         this.grade = grade;
         this.owner = owner;
-    }
-
-    public ItemGrade() {}
-
-    public Person getOwner() {
-        return owner;
-    }
-
-    public void setOwner(Person owner) {
-        this.owner = owner;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Item getItem() {
-        return item;
-    }
-
-    public void setItem(Item item) {
-        this.item = item;
-    }
-
-    public int getGrade() {
-        return grade;
-    }
-
-    public void setGrade(int grade) {
-        this.grade = grade;
     }
 }

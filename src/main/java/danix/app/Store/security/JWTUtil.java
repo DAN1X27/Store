@@ -26,7 +26,7 @@ public class JWTUtil{
                 .withClaim("email", email)
                 .withJWTId(UUID.randomUUID().toString())
                 .withIssuedAt(new Date())
-                .withIssuer("Daniil")
+                .withIssuer("Spring-app")
                 .withExpiresAt(expirationDate)
                 .sign(Algorithm.HMAC256(secret));
     }
@@ -34,7 +34,7 @@ public class JWTUtil{
     public String validateTokenAndRetrieveClaim(String token) throws JWTVerificationException {
         JWTVerifier verifier = JWT.require(Algorithm.HMAC256(secret))
                 .withSubject("User details")
-                .withIssuer("Daniil")
+                .withIssuer("Spring-app")
                 .build();
 
         DecodedJWT jwt = verifier.verify(token);
@@ -44,7 +44,7 @@ public class JWTUtil{
     public String getIdFromToken(String token) {
         JWTVerifier verifier = JWT.require(Algorithm.HMAC256(secret))
                 .withSubject("User details")
-                .withIssuer("Daniil")
+                .withIssuer("Spring-app")
                 .build();
 
         DecodedJWT jwt = verifier.verify(token);

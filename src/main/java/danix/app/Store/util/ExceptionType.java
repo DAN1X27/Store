@@ -6,4 +6,5 @@ public enum ExceptionType {
     ORDER_EXCEPTION,
     CART_EXCEPTION,
     REVIEW_EXCEPTION,
+    AUTHENTICATION_EXCEPTION
 }

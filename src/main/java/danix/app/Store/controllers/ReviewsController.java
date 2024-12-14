@@ -4,10 +4,10 @@ import danix.app.Store.dto.SearchReviewDTO;
 import danix.app.Store.dto.ItemReviewsDTO;
 import danix.app.Store.dto.ResponseItemReviewsDTO;
 import danix.app.Store.models.Item;
-import danix.app.Store.models.Person;
+import danix.app.Store.models.User;
 import danix.app.Store.services.ItemReviewsService;
 import danix.app.Store.services.ItemService;
-import danix.app.Store.services.PersonService;
+import danix.app.Store.services.UserService;
 import danix.app.Store.util.*;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,14 +26,14 @@ import java.util.Map;
 public class ReviewsController {
     private final ItemReviewsService itemReviewsService;
     private final ItemService itemService;
-    private final PersonService personService;
+    private final UserService userService;
 
     @Autowired
     public ReviewsController(ItemReviewsService itemReviewsService, ItemService itemService,
-                             PersonService personService) {
+                             UserService userService) {
         this.itemReviewsService = itemReviewsService;
         this.itemService = itemService;
-        this.personService = personService;
+        this.userService = userService;
     }
 
     @GetMapping
@@ -96,7 +96,7 @@ public class ReviewsController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/getUserReviewsForAdmin")
     public List<ResponseItemReviewsDTO> getAllUserReviewsForAdmin(@RequestBody Map<String, String> user) {
-        Person owner = personService.getUserByUserName(user.get("username"))
+        User owner = userService.getUserByUserName(user.get("username"))
                 .orElseThrow(() -> new ReviewException("User not found"));
         return itemReviewsService.getAllUserReviewsForAdmin(owner);
     }

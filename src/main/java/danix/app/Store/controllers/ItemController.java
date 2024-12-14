@@ -7,14 +7,17 @@ import danix.app.Store.repositories.ItemRepository;
 import danix.app.Store.services.ItemService;
 import danix.app.Store.util.*;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -22,18 +25,11 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/items")
+@RequiredArgsConstructor
 public class ItemController {
-
     private final ItemService itemService;
     private final ItemValidator itemValidator;
     private final ItemRepository itemRepository;
-
-    @Autowired
-    public ItemController(ItemService itemService, ItemValidator itemValidator, ItemRepository itemRepository) {
-        this.itemService = itemService;
-        this.itemValidator = itemValidator;
-        this.itemRepository = itemRepository;
-    }
 
     @GetMapping("/getAll")
     public List<ResponseItemDTO> getAllItems(@RequestParam(value = "sort-by-price", required = false) boolean sort,
@@ -67,25 +63,56 @@ public class ItemController {
         return ResponseEntity.ok("Grade successfully added");
     }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @PostMapping("/add")
-    public ResponseEntity<String> addItem(@RequestBody @Valid SaveItemDTO item,
+    public ResponseEntity<HttpStatus> addItem(@RequestBody @Valid SaveItemDTO item,
                                                        BindingResult bindingResult) {
         ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
         itemService.addItem(item);
-        return ResponseEntity.ok("Item added: " + item.getName());
+        return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
-    @PatchMapping("/deleteItem")
-    public ResponseEntity<String> deleteItem(@RequestBody @Valid ItemDTO item,
-                                                          BindingResult bindingResult) {
-
-        itemValidator.validate(item.getName(), bindingResult);
-        ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
-        itemService.deleteItem(item);
-        return ResponseEntity.ok("Deleted successfully for item: " + item.getName());
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PatchMapping("/add/{id}")
+    public ResponseEntity<HttpStatus> addItem(@PathVariable int id) {
+        itemService.addItem(id);
+        return ResponseEntity.ok(HttpStatus.OK);
     }
 
-    @PatchMapping("/updateItem")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PostMapping("/{id}/image")
+    public ResponseEntity<HttpStatus> addImage(@PathVariable int id, @RequestParam("image") MultipartFile file) {
+        itemService.addImage(file, id);
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @GetMapping("/image/{id}")
+    public ResponseEntity<?> getItemImage(@PathVariable long id) {
+        ResponseImageDTO image = itemService.getImage(id);
+        return ResponseEntity.status(HttpStatus.OK)
+                .contentType(image.getMediaType())
+                .body(image.getImageData());
+    }
+
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @DeleteMapping("/image/{id}")
+    public ResponseEntity<HttpStatus> deleteImage(@PathVariable long id) {
+        itemService.deleteImage(id);
+        return ResponseEntity.ok(HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<HttpStatus> deleteItem(@PathVariable int id, @RequestParam(value = "count", required = false) Integer count) {
+        if (count != null && count < 0) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+        itemService.deleteItem(id, count);
+        return ResponseEntity.ok(HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PatchMapping()
     public ResponseEntity<String> updateItem(@RequestBody @Valid UpdateItemDTO updateItemDTO,
                                                           BindingResult bindingResult) {
         itemValidator.validate(updateItemDTO.getName(), bindingResult);
@@ -99,6 +126,15 @@ public class ItemController {
 
     @ExceptionHandler
     public ResponseEntity<ErrorResponse> handleException(ItemException e) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                e.getMessage(),
+                System.currentTimeMillis()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResponse> handleException(ImageException e) {
         ErrorResponse errorResponse = new ErrorResponse(
                 e.getMessage(),
                 System.currentTimeMillis()

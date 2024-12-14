@@ -28,6 +28,8 @@ public class ErrorHandler {
                     throw new CartException(message.toString());
                 case REVIEW_EXCEPTION ->
                     throw new ReviewException(message.toString());
+                case AUTHENTICATION_EXCEPTION ->
+                    throw new AuthenticationException(message.toString());
             }
         }
     }

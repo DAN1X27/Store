@@ -23,7 +23,7 @@ create table item
 create table Orders
 (
     id               int generated always as identity primary key,
-    owner_id         int references person (id) on delete cascade,
+    owner_id         int references user (id) on delete cascade,
     price            int,
     created_at       timestamp not null,
     order_ready_date date      not null,
@@ -48,13 +48,13 @@ create table Tokens
 (
     id      varchar primary key,
     status  varchar                    not null,
-    user_id int references person (id) not null
+    user_id int references user (id) not null
 );
 
 create table Cart
 (
     id       int generated always as identity primary key,
-    owner_id int references person (id) on delete cascade unique,
+    owner_id int references user (id) on delete cascade unique,
     price    double precision not null
 );
 
@@ -76,7 +76,7 @@ create table items_reviews
 (
     id         integer generated always as identity primary key,
     item_id    integer not null references item (id) on delete cascade,
-    owner_id   integer not null references person on delete cascade,
+    owner_id   integer not null references user on delete cascade,
     likes      integer not null,
     comment    varchar not null,
     created_at date    not null,
@@ -86,7 +86,7 @@ create table items_reviews
 create table liked_reviews
 (
     id        integer generated always as identity primary key,
-    owner_id  integer references person (id) on delete cascade,
+    owner_id  integer references user (id) on delete cascade,
     review_id integer references items_reviews (id) on delete cascade
 );
 
@@ -95,7 +95,7 @@ create table items_grades
     id       integer generated always as identity primary key,
     item_id  integer references item (id) on delete cascade,
     grade    integer not null,
-    owner_id integer references person (id)
+    owner_id integer references user (id)
 );
 
 

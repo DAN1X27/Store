@@ -4,11 +4,11 @@ import danix.app.Store.dto.*;
 import danix.app.Store.models.Cart;
 import danix.app.Store.models.CartItems;
 import danix.app.Store.models.Item;
-import danix.app.Store.models.Person;
+import danix.app.Store.models.User;
 import danix.app.Store.repositories.CartRepository;
 import danix.app.Store.util.CartException;
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class CartService {
     private final CartRepository cartRepository;
     private final ModelMapper modelMapper;
@@ -27,17 +28,7 @@ public class CartService {
     private final CartItemsService cartItemsService;
     private final OrderService orderService;
 
-    @Autowired
-    public CartService(CartRepository cartRepository, ModelMapper modelMapper, ItemService itemService,
-                       CartItemsService cartItemsService, OrderService orderService) {
-        this.cartRepository = cartRepository;
-        this.modelMapper = modelMapper;
-        this.itemService = itemService;
-        this.cartItemsService = cartItemsService;
-        this.orderService = orderService;
-    }
-
-    public ResponseCartDTO getByOwner(Person owner) {
+    public ResponseCartDTO getByOwner(User owner) {
         return convertToCartDTO(cartRepository.findByOwner(owner).orElseThrow(() -> new CartException("Cart is empty")));
     }
 
@@ -48,13 +39,13 @@ public class CartService {
 
     @Transactional
     public void cleanCart() {
-        Person owner = PersonService.getCurrentUser();
+        User owner = UserService.getCurrentUser();
         cartRepository.delete(cartRepository.findByOwner(owner).orElseThrow(() -> new CartException("Cart is empty")));
     }
 
     @Transactional
     public void createOrder() {
-        Person owner = PersonService.getCurrentUser();
+        User owner = UserService.getCurrentUser();
         Cart cart = cartRepository.findByOwner(owner).orElseThrow(() -> new CartException("Cart is empty"));
         Map<String, CartItems> cartItemsMap = getCartItems(cart);
         OrderDTO orderDTO = new OrderDTO();
@@ -69,7 +60,7 @@ public class CartService {
     }
 
     private Cart convertToCart(CartDTO cartDTO) {
-        Person owner = PersonService.getCurrentUser();
+        User owner = UserService.getCurrentUser();
         Optional<Cart> availableCart = cartRepository.findByOwner(owner);
         Cart cart;
         if (availableCart.isEmpty()) {

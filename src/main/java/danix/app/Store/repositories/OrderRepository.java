@@ -1,8 +1,7 @@
 package danix.app.Store.repositories;
 
 import danix.app.Store.models.Order;
-import danix.app.Store.models.Person;
-import org.hibernate.annotations.Parameter;
+import danix.app.Store.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -24,5 +23,5 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findAllOrders();
 
     @Query("select o from Order o left join fetch o.items i where o.owner = :owner")
-    List<Order> finByOwner(@Param("owner") Person owner);
+    List<Order> finByOwner(@Param("owner") User owner);
 }

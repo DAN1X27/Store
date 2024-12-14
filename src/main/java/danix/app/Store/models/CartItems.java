@@ -1,9 +1,13 @@
 package danix.app.Store.models;
 
 import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "Cart_Items")
+@Data
+@NoArgsConstructor
 public class CartItems {
 
     @Id
@@ -28,45 +32,11 @@ public class CartItems {
         this.count = count;
     }
 
-    public CartItems() {}
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public Cart getCart() {
-        return cart;
-    }
-
-    public void setCart(Cart cart) {
-        this.cart = cart;
-    }
-
-    public Item getItem() {
-        return item;
-    }
-
-    public void setItem(Item item) {
-        this.item = item;
-    }
-
-    public int getCount() {
-        return count;
-    }
-
-    public void setCount(int count) {
-        this.count = count;
+    public double getItemPrice() {
+        return item.getPrice();
     }
 
     public String getItemName() {
         return item.getName();
-    }
-
-    public double getItemPrice() {
-        return item.getPrice();
     }
 }

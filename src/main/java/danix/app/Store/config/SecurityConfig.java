@@ -1,17 +1,13 @@
 package danix.app.Store.config;
 
-import danix.app.Store.services.PersonDetailsService;
-import jakarta.persistence.EntityManager;
+import danix.app.Store.services.UserDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.access.AccessDecisionManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.CsrfDsl;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -25,42 +21,23 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
-    private final PersonDetailsService personDetailsService;
+    private final UserDetailsServiceImpl userDetailsServiceImpl;
     private final JWTFilter jwtFilter;
 
     @Autowired
-    public SecurityConfig(PersonDetailsService personDetailsService, JWTFilter jwtFilter) {
-        this.personDetailsService = personDetailsService;
+    public SecurityConfig(UserDetailsServiceImpl userDetailsServiceImpl, JWTFilter jwtFilter) {
+        this.userDetailsServiceImpl = userDetailsServiceImpl;
         this.jwtFilter = jwtFilter;
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable);
 
-        http.authorizeHttpRequests(auth ->
-                auth.requestMatchers("/items/addItem", "/items/deleteItem", "/items/updateItem",
-                                "/orders/getAll").hasRole("ADMIN")
-                        .requestMatchers("/auth/registration", "/auth/forgotPassword", "/auth/recoverPassword", "/auth/login", "/error", "/items/findItem",
-                                "/items/getAll", "/auth/register-user").permitAll()
-                        .anyRequest().hasAnyRole("USER", "ADMIN")
-        );
-
-        http.formLogin(form -> form
-                .loginPage("/auth/login")
-                .loginProcessingUrl("/process_login")
-                .defaultSuccessUrl("/users/showUserInfo", true)
-                .failureUrl("/auth/login?error")
-                .permitAll()
-        );
-
-        http.logout(auth -> auth
-                .logoutUrl("/logout")
-                .logoutSuccessHandler((request, response, authentication) -> {
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.getWriter().write("Logout successful");
-                })
-                .permitAll()
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/auth/registration", "/auth/forgotPassword", "/auth/recoverPassword", "/auth/login", "/error", "/items/findItem",
+                        "/items/getAll", "/auth/register-user").permitAll()
+                .anyRequest().hasAnyRole("USER", "ADMIN")
         );
 
         http.sessionManagement(session ->
@@ -71,9 +48,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider(){
+    public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-        authenticationProvider.setUserDetailsService(personDetailsService);
+        authenticationProvider.setUserDetailsService(userDetailsServiceImpl);
         authenticationProvider.setPasswordEncoder(getPasswordEncoder());
 
         return authenticationProvider;

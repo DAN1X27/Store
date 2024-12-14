@@ -2,8 +2,9 @@ package danix.app.Store.services;
 
 import danix.app.Store.models.Item;
 import danix.app.Store.models.ItemGrade;
-import danix.app.Store.models.Person;
+import danix.app.Store.models.User;
 import danix.app.Store.repositories.ItemsGradesRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,19 +14,15 @@ import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class ItemsGradesService {
     private final ItemsGradesRepository itemsGradesRepository;
-
-    @Autowired
-    public ItemsGradesService(ItemsGradesRepository itemsGradesRepository) {
-        this.itemsGradesRepository = itemsGradesRepository;
-    }
 
     public List<ItemGrade> getAllByItem(Item item) {
         return itemsGradesRepository.findAllByItem(item);
     }
 
-    public Optional<ItemGrade> getByItemAndOwner(Item item, Person owner) {
+    public Optional<ItemGrade> getByItemAndOwner(Item item, User owner) {
         return itemsGradesRepository.findByItemAndOwner(item, owner);
     }
 

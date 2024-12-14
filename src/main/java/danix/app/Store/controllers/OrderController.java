@@ -4,9 +4,11 @@ import danix.app.Store.dto.*;
 import danix.app.Store.services.OrderService;
 import danix.app.Store.util.*;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,15 +16,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/orders")
+@RequiredArgsConstructor
 public class OrderController {
     private final OrderService orderService;
     private final OrderValidator orderValidator;
-
-    @Autowired
-    public OrderController(OrderService orderService, OrderValidator orderValidator) {
-        this.orderService = orderService;
-        this.orderValidator = orderValidator;
-    }
 
     @DeleteMapping("/takeOrder/{id}")
     public ResponseEntity<HttpStatus> takeOrder(@PathVariable("id") int id) {
@@ -41,6 +38,7 @@ public class OrderController {
         return orderService.getAllUserOrders();
     }
 
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/getAll")
     public List<AdminOrderDTO> getAll() {
 

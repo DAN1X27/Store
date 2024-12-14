@@ -1,7 +1,11 @@
 package danix.app.Store.dto;
 
 import jakarta.validation.constraints.NotEmpty;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class BanUserDTO {
 
     @NotEmpty(message = "Username must not bw empty")
@@ -9,20 +13,4 @@ public class BanUserDTO {
 
     @NotEmpty(message = "Reason must not be empty")
     private String reason;
-
-    public @NotEmpty(message = "Username must not bw empty") String getUsername() {
-        return username;
-    }
-
-    public void setUsername(@NotEmpty(message = "Username must not bw empty") String username) {
-        this.username = username;
-    }
-
-    public @NotEmpty(message = "Reason must not be empty") String getReason() {
-        return reason;
-    }
-
-    public void setReason(@NotEmpty(message = "Reason must not be empty") String reason) {
-        this.reason = reason;
-    }
 }

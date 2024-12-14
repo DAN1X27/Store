@@ -1,8 +1,8 @@
 package danix.app.Store.kafka_listeners;
 
-import danix.app.Store.models.EmailKeys;
+import danix.app.Store.models.EmailKey;
 import danix.app.Store.services.EmailSenderService;
-import danix.app.Store.services.PersonService;
+import danix.app.Store.services.UserService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -24,27 +24,19 @@ public class EmailListener {
         this.emailSenderService = emailSenderService;
     }
 
-    @KafkaListener(topics = "recoverPassword-topic")
-    public void recoverPasswordListener(String email) {
-        Random random = new Random();
-        int key = random.nextInt(100000, 999999);
-        PersonService.emailPasswordRecoverKeysMap.put(email, new EmailKeys(key,
-                Date.from(ZonedDateTime.now().plusMinutes(2).toInstant())));
+    @KafkaListener(topics = "recover-password-topic")
+    public void recoverPasswordListener(ConsumerRecord<String, String> record) {
         emailSenderService.sendMessage(
-                email,
-                "Your code to recover password: " + key
+                record.key(),
+                "Your code to recover password: " + record.value()
         );
     }
 
-    @KafkaListener(topics = "registrationCode-topic")
-    public void registrationCodeListener(String email) {
-        Random random = new Random();
-        int key = random.nextInt(100000, 999999);
-        PersonService.emailRegistrationKeysMap.put(email,
-                new EmailKeys(key, Date.from(ZonedDateTime.now().plusMinutes(2).toInstant())));
+    @KafkaListener(topics = "registration-topic")
+    public void registrationCodeListener(ConsumerRecord<String, String> record) {
         emailSenderService.sendMessage(
-                email,
-                "Your code to register for registration: " + key
+                record.key(),
+                "Your code to register for registration: " + record.value()
         );
     }
 

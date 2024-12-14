@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,29 +18,31 @@ import java.util.stream.Collectors;
 public class ItemReviewsService {
     private final ItemReviewsRepository itemReviewsRepository;
     private final LikedReviewsService likedReviewsService;
-    private final PersonService personService;
+    private final UserService userService;
     private final ItemsGradesRepository itemsGradesRepository;
     private final ItemsGradesService itemsGradesService;
 
     @Autowired
     public ItemReviewsService(ItemReviewsRepository itemReviewsRepository, LikedReviewsService likedReviewsService,
-                              PersonService personService, ItemsGradesRepository itemsGradesRepository,
+                              UserService userService, ItemsGradesRepository itemsGradesRepository,
                               ItemsGradesService itemsGradesService) {
         this.itemReviewsRepository = itemReviewsRepository;
         this.likedReviewsService = likedReviewsService;
-        this.personService = personService;
+        this.userService = userService;
         this.itemsGradesRepository = itemsGradesRepository;
         this.itemsGradesService = itemsGradesService;
     }
 
     public List<ResponseItemReviewsDTO> getItemReviews(Item item) {
         return itemReviewsRepository.findByItem(item).stream()
-                .map(this::convertToItemReviewsDTO).toList().stream()
-                .sorted((o1, o2) -> o2.getLikes().compareTo(o1.getLikes())).collect(Collectors.toList());
+                .map(this::convertToItemReviewsDTO)
+                .toList().stream()
+                .sorted((o1, o2) -> o2.getLikes().compareTo(o1.getLikes()))
+                .collect(Collectors.toList());
     }
 
     public ResponseItemReviewsDTO getUserReviewForItem(Item item) {
-        Person currentUser = PersonService.getCurrentUser();
+        User currentUser = UserService.getCurrentUser();
         return itemReviewsRepository.findByOwnerAndItem(currentUser, item)
                 .map(this::convertToItemReviewsDTO)
                 .orElse(null);
@@ -49,17 +50,17 @@ public class ItemReviewsService {
 
     @Transactional
     public void deleteReview(Item item) {
-        deleteUserReview(item, PersonService.getCurrentUser());
+        deleteUserReview(item, UserService.getCurrentUser());
     }
 
     @Transactional
     public void deleteUserReview(Item item, String userName) {
-        Person owner = personService.getUserByUserName(userName)
+        User owner = userService.getUserByUserName(userName)
                 .orElseThrow(() -> new ReviewException("User not found"));
         deleteUserReview(item, owner);
     }
 
-    private void deleteUserReview(Item item, Person owner) {
+    private void deleteUserReview(Item item, User owner) {
         ItemReviews itemReview = itemReviewsRepository.findByOwnerAndItem(owner, item)
                 .orElseThrow(() -> new ReviewException("Item review not found"));
         itemReviewsRepository.delete(itemReview);
@@ -67,8 +68,8 @@ public class ItemReviewsService {
 
     @Transactional
     public void addLikeToReview(Item item, String ownerUsername) {
-        Person currentUser = PersonService.getCurrentUser();
-        Person owner = personService.getUserByUserName(ownerUsername)
+        User currentUser = UserService.getCurrentUser();
+        User owner = userService.getUserByUserName(ownerUsername)
                 .orElseThrow(() -> new ReviewException("Owner not found"));
         ItemReviews itemReview = itemReviewsRepository.findByOwnerAndItem(owner, item)
                 .orElseThrow(() -> new ReviewException("Item review not found"));
@@ -84,27 +85,27 @@ public class ItemReviewsService {
 
     @Transactional
     public void createReview(ItemReviewsDTO itemReviewsDTO, Item item) {
-        itemReviewsRepository.findByOwnerAndItem(PersonService.getCurrentUser(), item)
+        itemReviewsRepository.findByOwnerAndItem(UserService.getCurrentUser(), item)
                 .ifPresent(review -> {
                     throw new ReviewException("You are already reviewed this item!");
                 });
         if (itemReviewsDTO.getGrade() < 1) throw new ReviewException("The grade cannot be less than 1");
         itemReviewsRepository.save(convertToItemReviews(itemReviewsDTO, item));
-        itemsGradesRepository.save(new ItemGrade(item, itemReviewsDTO.getGrade(), PersonService.getCurrentUser()));
+        itemsGradesRepository.save(new ItemGrade(item, itemReviewsDTO.getGrade(), UserService.getCurrentUser()));
         List<ItemGrade> itemGrades = itemsGradesService.getAllByItem(item);
         int sum = itemGrades.stream().mapToInt(ItemGrade::getGrade).sum();
-        double rating = Math.round((double) sum / itemGrades.size() * 10.0) / 10.0;
+        double rating = Math.round( (double) sum / itemGrades.size() * 10.0) / 10.0;
         item.setRating(rating);
     }
 
     public List<ResponseItemReviewsDTO> getAllUserReviews() {
-        Person currentUser = PersonService.getCurrentUser();
+        User currentUser = UserService.getCurrentUser();
         return itemReviewsRepository.findAllByOwner(currentUser).stream()
                 .map(this::convertToItemReviewsDTO).toList();
     }
 
-    public List<ResponseItemReviewsDTO> getAllUserReviewsForAdmin(Person person) {
-        return itemReviewsRepository.findAllByOwner(person).stream()
+    public List<ResponseItemReviewsDTO> getAllUserReviewsForAdmin(User user) {
+        return itemReviewsRepository.findAllByOwner(user).stream()
                 .map(this::convertToItemReviewsDTO).toList();
     }
 
@@ -114,10 +115,10 @@ public class ItemReviewsService {
         reviewDTO.setComment(itemReviews.getComment());
         reviewDTO.setItemName(itemReviews.getItem().getName());
         reviewDTO.setCreatedAt(itemReviews.getCreatedAt());
-        reviewDTO.setOwnerUsername(itemReviews.getOwner().getUserName());
+        reviewDTO.setOwnerUsername(itemReviews.getOwner().getUsername());
         List<LikedReviews> likedReviews = likedReviewsService.getAllByItemReview(itemReviews);
         for (LikedReviews likedReview : likedReviews) {
-            if (likedReview.getOwnerName().equals(PersonService.getCurrentUser().getUserName())) {
+            if (likedReview.getOwnerName().equals(UserService.getCurrentUser().getUsername())) {
                 reviewDTO.setLiked(true);
             }
         }
@@ -128,7 +129,7 @@ public class ItemReviewsService {
     private ItemReviews convertToItemReviews(ItemReviewsDTO itemReviewsDTO, Item item) {
         ItemReviews itemReviews = new ItemReviews();
         itemReviews.setItem(item);
-        itemReviews.setOwner(PersonService.getCurrentUser());
+        itemReviews.setOwner(UserService.getCurrentUser());
         itemReviews.setComment(itemReviewsDTO.getComment());
         itemReviews.setCreatedAt(new Date());
         itemReviews.setLikes(0);

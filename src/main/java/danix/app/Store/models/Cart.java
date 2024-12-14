@@ -1,11 +1,13 @@
 package danix.app.Store.models;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.util.List;
 
 @Entity
 @Table(name = "Cart")
+@Data
 public class Cart {
 
     @Id
@@ -23,40 +25,8 @@ public class Cart {
 
     @ManyToOne
     @JoinColumn(name = "owner_id")
-    private Person owner;
+    private User owner;
 
     @Column(name = "price")
     private double price;
-
-    public double getPrice() {
-        return price;
-    }
-
-    public void setPrice(double price) {
-        this.price = price;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public List<Item> getItems() {
-        return items;
-    }
-
-    public void setItems(List<Item> items) {
-        this.items = items;
-    }
-
-    public Person getOwner() {
-        return owner;
-    }
-
-    public void setOwner(Person owner) {
-        this.owner = owner;
-    }
 }

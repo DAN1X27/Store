@@ -1,41 +1,29 @@
 package danix.app.Store.controllers;
 
 import danix.app.Store.dto.CartDTO;
-import danix.app.Store.dto.ItemDTO;
-import danix.app.Store.dto.OrderDTO;
 import danix.app.Store.dto.ResponseCartDTO;
-import danix.app.Store.models.Cart;
-import danix.app.Store.models.Person;
+import danix.app.Store.models.User;
 import danix.app.Store.services.CartService;
-import danix.app.Store.services.ItemService;
-import danix.app.Store.services.PersonService;
+import danix.app.Store.services.UserService;
 import danix.app.Store.util.*;
 import jakarta.validation.Valid;
-import org.modelmapper.ModelMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 @RestController
 @RequestMapping("/cart")
+@RequiredArgsConstructor
 public class CartController {
     private final CartService cartService;
     private final CartValidator cartValidator;
 
-    @Autowired
-    public CartController(CartService cartService, CartValidator cartValidator) {
-        this.cartService = cartService;
-        this.cartValidator = cartValidator;
-    }
-
     @GetMapping()
     public ResponseEntity<ResponseCartDTO> showUserCart() {
-        Person currentUser = PersonService.getCurrentUser();
+        User currentUser = UserService.getCurrentUser();
 
         return new ResponseEntity<>(cartService.getByOwner(currentUser), HttpStatus.OK);
     }

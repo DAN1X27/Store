@@ -11,7 +11,6 @@
 	<groupId>danix.app</groupId>
 	<artifactId>Store</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<username>Store</username>
 	<description>Demo project for Spring Boot</description>
 	<url/>
 	<licenses>
@@ -94,6 +93,14 @@
 			<groupId>org.springframework.kafka</groupId>
 			<artifactId>spring-kafka</artifactId>
 			<version>3.3.0</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.36</version>
+			<scope>provided</scope>
 		</dependency>
 
 	</dependencies>

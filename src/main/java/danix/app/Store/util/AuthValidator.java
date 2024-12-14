@@ -1,9 +1,8 @@
 package danix.app.Store.util;
 
 import danix.app.Store.dto.AuthDTO;
-import danix.app.Store.dto.PersonDTO;
-import danix.app.Store.models.Person;
-import danix.app.Store.services.PersonService;
+import danix.app.Store.models.User;
+import danix.app.Store.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;
@@ -13,11 +12,11 @@ import java.util.Optional;
 
 @Component
 public class AuthValidator implements Validator {
-    private final PersonService personService;
+    private final UserService userService;
 
     @Autowired
-    public AuthValidator(PersonService personService) {
-        this.personService = personService;
+    public AuthValidator(UserService userService) {
+        this.userService = userService;
     }
 
     @Override
@@ -26,17 +25,16 @@ public class AuthValidator implements Validator {
     }
 
     @Override
-    public void validate(Object target, Errors errors) {
+    public void  validate(Object target, Errors errors) {
         AuthDTO authDTO = (AuthDTO) target;
-
-        Optional<Person> person = personService.getUserByEmail(authDTO.getEmail());
-
-        if(person.isEmpty()) {
+        userService.getUserByEmail(authDTO.getEmail()).ifPresentOrElse(user -> {
+            if (user.getStatus() == User.Status.BANNED) {
+                errors.rejectValue("email", "", "Account is banned");
+            } else if (user.getStatus() == User.Status.TEMPORAL_REGISTERED) {
+                errors.rejectValue("email", "", "User not found");
+            }
+        }, () -> {
             errors.rejectValue("email", "", "User not found");
-        }
-
-        if(person.isPresent() && person.get().isBanned()) {
-            errors.rejectValue("email", "", "Account banned");
-        }
+        });
     }
 }

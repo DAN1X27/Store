@@ -1,8 +1,8 @@
 package danix.app.Store.util;
 
 import danix.app.Store.dto.UpdatePersonDTO;
-import danix.app.Store.models.Person;
-import danix.app.Store.services.PersonService;
+import danix.app.Store.models.User;
+import danix.app.Store.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -11,12 +11,12 @@ import org.springframework.validation.Validator;
 
 @Component
 public class UpdatePasswordValidator implements Validator {
-    private final PersonService personService;
+    private final UserService userService;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UpdatePasswordValidator(PersonService personService, PasswordEncoder passwordEncoder) {
-        this.personService = personService;
+    public UpdatePasswordValidator(UserService userService, PasswordEncoder passwordEncoder) {
+        this.userService = userService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -27,7 +27,7 @@ public class UpdatePasswordValidator implements Validator {
 
     @Override
     public void validate(Object target, Errors errors) {
-        Person currentUser = PersonService.getCurrentUser();
+        User currentUser = UserService.getCurrentUser();
         UpdatePersonDTO updatePersonDTO = (UpdatePersonDTO) target;
 
         if (!passwordEncoder.matches(updatePersonDTO.getOldPassword(), currentUser.getPassword())) {

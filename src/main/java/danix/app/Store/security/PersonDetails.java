@@ -1,6 +1,6 @@
 package danix.app.Store.security;
 
-import danix.app.Store.models.Person;
+import danix.app.Store.models.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -10,39 +10,37 @@ import org.springframework.stereotype.Component;
 import java.util.Collection;
 import java.util.Collections;
 
-@Component
 public class PersonDetails implements UserDetails {
 
-    private final Person person;
+    private final User user;
 
-    @Autowired
-    public PersonDetails(Person person) {
-        this.person = person;
+    public PersonDetails(User user) {
+        this.user = user;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority(person.getRole()));
+        return Collections.singletonList(new SimpleGrantedAuthority(user.getRole().toString()));
     }
 
     @Override
     public String getPassword() {
-        return person.getPassword();
+        return user.getPassword();
     }
 
     @Override
     public String getUsername() {
-        return person.getEmail();
+        return user.getEmail();
     }
 
-    public Person getPerson() {
-        return person;
+    public User getPerson() {
+        return user;
     }
 
     @Override
     public String toString() {
         return "PersonDetails{" +
-                "person=" + person +
+                "person=" + user +
                 '}';
     }
 }

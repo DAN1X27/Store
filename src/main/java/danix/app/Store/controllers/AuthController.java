@@ -1,20 +1,20 @@
 package danix.app.Store.controllers;
 
+import danix.app.Store.dto.AcceptEmailKeyDTO;
 import danix.app.Store.dto.AuthDTO;
-import danix.app.Store.dto.PersonDTO;
+import danix.app.Store.dto.UserDTO;
 import danix.app.Store.dto.RecoverPasswordDTO;
-import danix.app.Store.models.Person;
 import danix.app.Store.models.TokenStatus;
+import danix.app.Store.models.User;
+import danix.app.Store.repositories.EmailKeysRepository;
 import danix.app.Store.security.JWTUtil;
-import danix.app.Store.services.PersonService;
+import danix.app.Store.services.UserService;
 import danix.app.Store.services.TokensService;
 import danix.app.Store.util.*;
 import jakarta.validation.Valid;
-import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,40 +22,29 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.Map;
+
+import static danix.app.Store.services.UserService.getCurrentUser;
 
 @RestController
 @RequestMapping("/auth")
+@RequiredArgsConstructor
 public class AuthController {
-    private final PersonService personService;
-    private final PersonValidator validator;
+    private final UserService userService;
+    private final RegistrationValidator validator;
     private final AuthenticationProvider authenticationProvider;
     private final AuthValidator authValidator;
     private final TokensService tokensService;
     private final JWTUtil jwtUtil;
-    private final KafkaTemplate<String, String> kafkaTemplate;
     private final PasswordEncoder passwordEncoder;
-
-    @Autowired
-    public AuthController(PersonService personService, PersonValidator validator, AuthenticationProvider authenticationProvider,
-                          AuthValidator authValidator, TokensService tokensService, JWTUtil jwtUtil,
-                          KafkaTemplate<String, String> kafkaTemplate, PasswordEncoder passwordEncoder) {
-        this.personService = personService;
-        this.validator = validator;
-        this.authenticationProvider = authenticationProvider;
-        this.authValidator = authValidator;
-        this.tokensService = tokensService;
-        this.jwtUtil = jwtUtil;
-        this.kafkaTemplate = kafkaTemplate;
-        this.passwordEncoder = passwordEncoder;
-    }
+    private final EmailKeysRepository emailKeysRepository;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody @Valid AuthDTO authDTO,
                                             BindingResult bindingResult) {
         authValidator.validate(authDTO, bindingResult);
-        ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
+        ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
         UsernamePasswordAuthenticationToken authToken =
                 new UsernamePasswordAuthenticationToken(authDTO.getEmail(), authDTO.getPassword());
         try {
@@ -65,7 +54,7 @@ public class AuthController {
         }
 
         String token = jwtUtil.generateToken(authDTO.getEmail());
-        tokensService.create(token, personService.getUserByEmail(authDTO.getEmail()).get());
+        tokensService.create(token, userService.getUserByEmail(authDTO.getEmail()).get());
 
         return new ResponseEntity<>(Map.of("jwt-token", token), HttpStatus.OK);
     }
@@ -75,13 +64,15 @@ public class AuthController {
         if (email.get("email") == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-        personService.getUserByEmail(email.get("email"))
+        userService.getUserByEmail(email.get("email"))
                 .orElseThrow(() -> new UserException("User not found"));
-        if (PersonService.emailPasswordRecoverKeysMap.get(email.get("email")) != null
-                && PersonService.emailPasswordRecoverKeysMap.get(email.get("email")).getExpiredAt().after(new Date())) {
-            throw new UserException("You already have an active key");
-        }
-        kafkaTemplate.send("recoverPassword-topic", email.get("email"));
+        emailKeysRepository.findByEmail(email.get("email")).ifPresent(key -> {
+           if (key.getExpiredTime().isAfter(LocalDateTime.now())) {
+               throw new AuthenticationException("User already have an active key");
+           }
+           userService.deleteEmailKey(key);
+        });
+        userService.sendRecoverPasswordKey(email.get("email"));
         return ResponseEntity.ok("Success");
     }
 
@@ -89,62 +80,88 @@ public class AuthController {
     public ResponseEntity<String> recoverPassword(@RequestBody RecoverPasswordDTO recoverPasswordDTO,
                                                   BindingResult bindingResult, @RequestParam(value = "key") int key) {
         ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
-        Person user = personService.getUserByEmail(recoverPasswordDTO.getEmail())
-                .orElseThrow(() -> new UserException("User not found"));
-        if (PersonService.emailPasswordRecoverKeysMap.get(recoverPasswordDTO.getEmail()) == null) {
-            throw new UserException("User not found");
-        } else if (PersonService.emailPasswordRecoverKeysMap.get(recoverPasswordDTO.getEmail()).getKey() != key) {
-            throw new UserException("Invalid key");
-        } else if (PersonService.emailPasswordRecoverKeysMap.get(recoverPasswordDTO.getEmail()).getExpiredAt().before(new Date())) {
-            PersonService.emailPasswordRecoverKeysMap.remove(recoverPasswordDTO.getEmail());
-            throw new UserException("Key is expired");
-        }
-        user.setPassword(passwordEncoder.encode(recoverPasswordDTO.getNewPassword()));
-        personService.updateUser(user.getId(), user);
+        emailKeysRepository.findByEmail(recoverPasswordDTO.getEmail()).ifPresentOrElse(emailKey -> {
+            if (emailKey.getKey() != key) {
+                userService.updateEmailKeyAttempts(emailKey);
+                if (emailKey.getAttempts() >= 3) {
+                    userService.deleteEmailKey(emailKey);
+                    throw new AuthenticationException("The limit of attempts has been exceeded, send the key again");
+                }
+                throw new AuthenticationException("Invalid key");
+            } else if (emailKey.getExpiredTime().isBefore(LocalDateTime.now())) {
+                userService.deleteEmailKey(emailKey);
+                throw new AuthenticationException("Expired key");
+            }
+            User user = userService.getUserByEmail(recoverPasswordDTO.getEmail()).get();
+            user.setPassword(passwordEncoder.encode(recoverPasswordDTO.getNewPassword()));
+            userService.updateUser(user.getId(), user);
+            userService.deleteEmailKey(emailKey);
+        }, () -> {
+            throw new AuthenticationException("Email not found");
+        });
         return ResponseEntity.ok("Password recovered");
     }
 
     @PostMapping("/registration")
-    public ResponseEntity<String> registration(@RequestBody @Valid PersonDTO personDTO,
+    public ResponseEntity<String> registration(@RequestBody @Valid UserDTO userDTO,
                                                    BindingResult bindingResult) {
-        validator.validate(personDTO, bindingResult);
-        ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
-        if (PersonService.emailRegistrationKeysMap.get(personDTO.getEmail()) != null
-        && PersonService.emailRegistrationKeysMap.get(personDTO.getEmail()).getExpiredAt().after(new Date())) {
-            throw new UserException("You already have an active key");
-        }
-        personService.temporalRegisterUser(personDTO);
-        kafkaTemplate.send("registrationCode-topic", personDTO.getEmail());
+        ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
+        emailKeysRepository.findByEmail(userDTO.getEmail()).ifPresent(key -> {
+            if (key.getExpiredTime().isAfter(LocalDateTime.now())) {
+                throw new AuthenticationException("User already have an active key");
+            }
+            userService.deleteEmailKey(key);
+            userService.deleteTemUser(userDTO.getEmail());
+        });
+        userService.deleteTemUser(userDTO.getEmail());
+        validator.validate(userDTO, bindingResult);
+        userService.temporalRegisterUser(userDTO);
+        userService.sendRegistrationKey(userDTO.getEmail());
         return ResponseEntity.ok("Key sent");
     }
 
-    @PostMapping("/register-user")
-    public ResponseEntity<String> registerUser(@RequestParam(value = "email") String email,
-                                               @RequestParam(value = "key") int key) {
-        if (PersonService.emailRegistrationKeysMap.get(email) == null) {
-            throw new UserException("User not found");
-        } else if (PersonService.emailRegistrationKeysMap.get(email).getKey() != key) {
-            throw new UserException("Invalid key");
-        } else if (PersonService.emailRegistrationKeysMap.get(email).getExpiredAt().before(new Date())) {
-            PersonService.emailRegistrationKeysMap.remove(email);
-            throw new UserException("Time is up");
-        }
-        personService.register(email);
+    @PatchMapping("/register-user")
+    public ResponseEntity<String> registerUser(@RequestBody @Valid AcceptEmailKeyDTO emailKey,
+                                               BindingResult bindingResult) {
+        ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
+        emailKeysRepository.findByEmail(emailKey.getEmail()).ifPresentOrElse(key -> {
+            if (emailKey.getKey() != key.getKey()) {
+                userService.updateEmailKeyAttempts(key);
+                if (key.getAttempts() >= 3) {
+                    throw new AuthenticationException("The limit of attempts has been exceeded, send the key again");
+                }
+                throw new AuthenticationException("Invalid key");
+            } else if (key.getExpiredTime().isBefore(LocalDateTime.now())) {
+                userService.deleteEmailKey(key);
+                userService.deleteTemUser(emailKey.getEmail());
+                throw new AuthenticationException("Key is expired");
+            }
+            userService.register(emailKey.getEmail());
+            userService.deleteEmailKey(key);
+        }, () -> {
+            throw new AuthenticationException("User not found");
+        });
         return ResponseEntity.ok("Registration succeeded");
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@RequestHeader("Authorization") String token) {
-        if (token != null && token.startsWith("Bearer ")) {
-            String jwt = token.substring(7);
-            tokensService.updateStatus(jwtUtil.getIdFromToken(jwt), TokenStatus.REVOKED);
-            return ResponseEntity.ok("Logout successful");
-        }
-        return ResponseEntity.badRequest().body("Invalid token");
+    public ResponseEntity<HttpStatus> logout() {
+        User user = getCurrentUser();
+        tokensService.getAllUserTokens(user).forEach(token -> tokensService.updateStatus(token.getId(), TokenStatus.REVOKED));
+        return ResponseEntity.ok(HttpStatus.OK);
     }
 
     @ExceptionHandler
     public ResponseEntity<ErrorResponse> exceptionHandle(UserException e) {
+        ErrorResponse personErrorResponse = new ErrorResponse(
+                e.getMessage(),
+                System.currentTimeMillis()
+        );
+        return new ResponseEntity<>(personErrorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResponse> exceptionHandle(AuthenticationException e) {
         ErrorResponse personErrorResponse = new ErrorResponse(
                 e.getMessage(),
                 System.currentTimeMillis()

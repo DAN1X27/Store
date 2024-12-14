@@ -1,10 +1,16 @@
 package danix.app.Store.models;
 
 import jakarta.persistence.*;
-import org.hibernate.engine.spi.Status;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.Date;
 
 @Entity
 @Table(name = "Tokens")
+@Getter
+@Setter
 public class Token {
     @Id
     @Column(name = "id")
@@ -15,29 +21,8 @@ public class Token {
 
     @ManyToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id")
-    private Person owner;
+    private User owner;
 
-    public Person getOwner() {
-        return owner;
-    }
-
-    public void setOwner(Person owner) {
-        this.owner = owner;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public TokenStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(TokenStatus status) {
-        this.status = status;
-    }
+    @Column(name = "expired_at")
+    private Date expiredDate;
 }

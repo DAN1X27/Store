@@ -4,9 +4,10 @@ import danix.app.Store.dto.*;
 import danix.app.Store.models.Item;
 import danix.app.Store.models.Order;
 import danix.app.Store.models.OrderedItems;
-import danix.app.Store.models.Person;
+import danix.app.Store.models.User;
 import danix.app.Store.repositories.OrderRepository;
 import danix.app.Store.util.OrderException;
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,22 +19,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class OrderService {
     private final OrderRepository orderRepository;
     private final ItemService itemService;
     private final ModelMapper modelMapper;
     private final OrderedItemsService orderedItemsService;
-    private final PersonService personService;
-
-    @Autowired
-    public OrderService(OrderRepository orderRepository, ItemService itemService, ModelMapper modelMapper,
-                        OrderedItemsService orderedItemsService, PersonService personService) {
-        this.orderRepository = orderRepository;
-        this.itemService = itemService;
-        this.modelMapper = modelMapper;
-        this.orderedItemsService = orderedItemsService;
-        this.personService = personService;
-    }
+    private final UserService userService;
 
     @Transactional
     public List<AdminOrderDTO> getAllOrders() {
@@ -42,15 +34,15 @@ public class OrderService {
 
     @Transactional
     public List<AdminOrderDTO> getAllUserOrdersForAdmin(String userName) {
-        Person person = personService.getUserByUserName(userName).get();
+        User user = userService.getUserByUserName(userName).get();
 
-        return orderRepository.finByOwner(person).stream()
+        return orderRepository.finByOwner(user).stream()
                 .map(this::convertToAdminOrderDTO).collect(Collectors.toList());
     }
 
     @Transactional
     public List<ResponseOrderDTO> getAllUserOrders() {
-        Person owner = PersonService.getCurrentUser();
+        User owner = UserService.getCurrentUser();
 
         return orderRepository.finByOwner(owner).stream()
                 .map(this::convertToOrderDTO).collect(Collectors.toList());
@@ -59,7 +51,7 @@ public class OrderService {
     @Transactional
     public void takeOrder(int id) {
         Optional<Order> order = orderRepository.findById(id);
-        Person owner = PersonService.getCurrentUser();
+        User owner = UserService.getCurrentUser();
 
         if(order.isEmpty()) {
             throw new OrderException("Order with this ID not found.");
@@ -80,7 +72,7 @@ public class OrderService {
     @Transactional
     public void cancelOrder(int id) {
         Optional<Order> order = orderRepository.findById(id);
-        Person owner = PersonService.getCurrentUser();
+        User owner = UserService.getCurrentUser();
 
         if (order.isEmpty()) {
             throw new OrderException("Order with this ID not found.");
@@ -131,7 +123,7 @@ public class OrderService {
 
     private Order convertToOrder(OrderDTO orderDTO) {
         Order order = new Order();
-        Person owner = PersonService.getCurrentUser();
+        User owner = UserService.getCurrentUser();
 
         Calendar readyDate = Calendar.getInstance();
         readyDate.add(Calendar.DAY_OF_MONTH, 2);
@@ -166,7 +158,7 @@ public class OrderService {
 
     private List<SaveItemDTO> getItems(Order order) {
         Map<String, OrderedItems> orderedItems = orderedItemsService.getByOrder(order).stream()
-                .collect(Collectors.toMap(OrderedItems::getName, Function.identity()));
+                .collect(Collectors.toMap(OrderedItems::getItemName, Function.identity()));
         return order.getItems().stream()
                 .map(item -> modelMapper.map(item, SaveItemDTO.class))
                 .map(item -> setPrice(item, orderedItems))
@@ -192,7 +184,7 @@ public class OrderService {
         adminOrderDTO.setId(order.getId());
         adminOrderDTO.setSum(order.getPrice());
         adminOrderDTO.setCreatedAt(order.getCreatedAt());
-        adminOrderDTO.setOwnerName(order.getOwner().getUserName());
+        adminOrderDTO.setOwnerName(order.getOwner().getUsername());
 
         return adminOrderDTO;
     }

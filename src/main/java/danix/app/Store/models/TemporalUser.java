@@ -1,31 +1,14 @@
 package danix.app.Store.models;
 
-import danix.app.Store.dto.PersonDTO;
+import danix.app.Store.dto.UserDTO;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Date;
 
+@Getter
+@Setter
 public class TemporalUser {
-    private PersonDTO user;
+    private UserDTO user;
     private Date expiredTime;
-
-    public TemporalUser(PersonDTO user, Date expiredTime) {
-        this.user = user;
-        this.expiredTime = expiredTime;
-    }
-
-    public PersonDTO getUser() {
-        return user;
-    }
-
-    public void setUser(PersonDTO user) {
-        this.user = user;
-    }
-
-    public Date getExpiredTime() {
-        return expiredTime;
-    }
-
-    public void setExpiredTime(Date expiredTime) {
-        this.expiredTime = expiredTime;
-    }
 }
