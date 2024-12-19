@@ -8,7 +8,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class UserDTO {
+public class RegistrationUserDTO {
     @NotEmpty(message = "Username cant be empty.")
     @Size(min = 2, max = 20, message = "Username must be between 2 and 20 characters.")
     private String username;

@@ -1,6 +1,6 @@
 package danix.app.Store.models;
 
-import danix.app.Store.dto.UserDTO;
+import danix.app.Store.dto.RegistrationUserDTO;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,6 +9,6 @@ import java.util.Date;
 @Getter
 @Setter
 public class TemporalUser {
-    private UserDTO user;
+    private RegistrationUserDTO user;
     private Date expiredTime;
 }

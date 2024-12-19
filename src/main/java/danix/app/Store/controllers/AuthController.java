@@ -2,7 +2,7 @@ package danix.app.Store.controllers;
 
 import danix.app.Store.dto.AcceptEmailKeyDTO;
 import danix.app.Store.dto.AuthDTO;
-import danix.app.Store.dto.UserDTO;
+import danix.app.Store.dto.RegistrationUserDTO;
 import danix.app.Store.dto.RecoverPasswordDTO;
 import danix.app.Store.models.TokenStatus;
 import danix.app.Store.models.User;
@@ -32,13 +32,14 @@ import static danix.app.Store.services.UserService.getCurrentUser;
 @RequiredArgsConstructor
 public class AuthController {
     private final UserService userService;
-    private final RegistrationValidator validator;
+    private final RegistrationValidator registrationValidator;
     private final AuthenticationProvider authenticationProvider;
     private final AuthValidator authValidator;
     private final TokensService tokensService;
     private final JWTUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final EmailKeysRepository emailKeysRepository;
+    private final EmailKeyValidator emailKeyValidator;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody @Valid AuthDTO authDTO,
@@ -60,87 +61,55 @@ public class AuthController {
     }
 
     @GetMapping("/forgotPassword")
-    public ResponseEntity<String> forgotPassword(@RequestBody Map<String, String> email) {
-        if (email.get("email") == null) {
+    public ResponseEntity<String> forgotPassword(@RequestBody Map<String, String> emailData) {
+        String email = emailData.get("email");
+        if (email == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-        userService.getUserByEmail(email.get("email"))
+        userService.getUserByEmail(email)
                 .orElseThrow(() -> new UserException("User not found"));
-        emailKeysRepository.findByEmail(email.get("email")).ifPresent(key -> {
+        emailKeysRepository.findByEmail(email).ifPresent(key -> {
            if (key.getExpiredTime().isAfter(LocalDateTime.now())) {
                throw new AuthenticationException("User already have an active key");
            }
            userService.deleteEmailKey(key);
         });
-        userService.sendRecoverPasswordKey(email.get("email"));
+        userService.sendRecoverPasswordKey(email);
         return ResponseEntity.ok("Success");
     }
 
     @PatchMapping("/recoverPassword")
-    public ResponseEntity<String> recoverPassword(@RequestBody RecoverPasswordDTO recoverPasswordDTO,
-                                                  BindingResult bindingResult, @RequestParam(value = "key") int key) {
-        ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
-        emailKeysRepository.findByEmail(recoverPasswordDTO.getEmail()).ifPresentOrElse(emailKey -> {
-            if (emailKey.getKey() != key) {
-                userService.updateEmailKeyAttempts(emailKey);
-                if (emailKey.getAttempts() >= 3) {
-                    userService.deleteEmailKey(emailKey);
-                    throw new AuthenticationException("The limit of attempts has been exceeded, send the key again");
-                }
-                throw new AuthenticationException("Invalid key");
-            } else if (emailKey.getExpiredTime().isBefore(LocalDateTime.now())) {
-                userService.deleteEmailKey(emailKey);
-                throw new AuthenticationException("Expired key");
-            }
-            User user = userService.getUserByEmail(recoverPasswordDTO.getEmail()).get();
-            user.setPassword(passwordEncoder.encode(recoverPasswordDTO.getNewPassword()));
-            userService.updateUser(user.getId(), user);
-            userService.deleteEmailKey(emailKey);
-        }, () -> {
-            throw new AuthenticationException("Email not found");
-        });
+    public ResponseEntity<String> recoverPassword(@RequestBody @Valid RecoverPasswordDTO recoverPasswordDTO,
+                                                  BindingResult bindingResult) {
+        ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
+        emailKeyValidator.validate(recoverPasswordDTO, bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
+        User user = userService.getUserByEmail(recoverPasswordDTO.getEmail())
+                        .orElseThrow(() -> new AuthenticationException("User not found"));
+        user.setPassword(passwordEncoder.encode(recoverPasswordDTO.getNewPassword()));
+        userService.updateUser(user.getId(), user);
         return ResponseEntity.ok("Password recovered");
     }
 
     @PostMapping("/registration")
-    public ResponseEntity<String> registration(@RequestBody @Valid UserDTO userDTO,
+    public ResponseEntity<String> registration(@RequestBody @Valid RegistrationUserDTO registrationUserDTO,
                                                    BindingResult bindingResult) {
         ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
-        emailKeysRepository.findByEmail(userDTO.getEmail()).ifPresent(key -> {
-            if (key.getExpiredTime().isAfter(LocalDateTime.now())) {
-                throw new AuthenticationException("User already have an active key");
-            }
-            userService.deleteEmailKey(key);
-            userService.deleteTemUser(userDTO.getEmail());
-        });
-        userService.deleteTemUser(userDTO.getEmail());
-        validator.validate(userDTO, bindingResult);
-        userService.temporalRegisterUser(userDTO);
-        userService.sendRegistrationKey(userDTO.getEmail());
+        registrationValidator.validate(registrationUserDTO, bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
+        userService.deleteTempUser(registrationUserDTO.getEmail());
+        userService.temporalRegisterUser(registrationUserDTO);
+        userService.sendRegistrationKey(registrationUserDTO.getEmail());
         return ResponseEntity.ok("Key sent");
     }
 
-    @PatchMapping("/register-user")
+    @PatchMapping("/registration/accept")
     public ResponseEntity<String> registerUser(@RequestBody @Valid AcceptEmailKeyDTO emailKey,
                                                BindingResult bindingResult) {
         ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
-        emailKeysRepository.findByEmail(emailKey.getEmail()).ifPresentOrElse(key -> {
-            if (emailKey.getKey() != key.getKey()) {
-                userService.updateEmailKeyAttempts(key);
-                if (key.getAttempts() >= 3) {
-                    throw new AuthenticationException("The limit of attempts has been exceeded, send the key again");
-                }
-                throw new AuthenticationException("Invalid key");
-            } else if (key.getExpiredTime().isBefore(LocalDateTime.now())) {
-                userService.deleteEmailKey(key);
-                userService.deleteTemUser(emailKey.getEmail());
-                throw new AuthenticationException("Key is expired");
-            }
-            userService.register(emailKey.getEmail());
-            userService.deleteEmailKey(key);
-        }, () -> {
-            throw new AuthenticationException("User not found");
-        });
+        emailKeyValidator.validate(emailKey, bindingResult);
+        ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
+        userService.register(emailKey.getEmail());
         return ResponseEntity.ok("Registration succeeded");
     }
 

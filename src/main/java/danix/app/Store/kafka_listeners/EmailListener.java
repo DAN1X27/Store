@@ -1,17 +1,11 @@
 package danix.app.Store.kafka_listeners;
 
-import danix.app.Store.models.EmailKey;
 import danix.app.Store.services.EmailSenderService;
-import danix.app.Store.services.UserService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-
-import java.time.ZonedDateTime;
-import java.util.Date;
-import java.util.Random;
 
 @Component
 @EnableKafka
@@ -36,7 +30,7 @@ public class EmailListener {
     public void registrationCodeListener(ConsumerRecord<String, String> record) {
         emailSenderService.sendMessage(
                 record.key(),
-                "Your code to register for registration: " + record.value()
+                "Your registration code: " + record.value()
         );
     }
 

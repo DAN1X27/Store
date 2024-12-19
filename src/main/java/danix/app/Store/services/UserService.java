@@ -1,14 +1,12 @@
 package danix.app.Store.services;
 
-import danix.app.Store.dto.UserDTO;
+import danix.app.Store.dto.RegistrationUserDTO;
 import danix.app.Store.models.EmailKey;
 import danix.app.Store.models.User;
-import danix.app.Store.models.TemporalUser;
 import danix.app.Store.repositories.EmailKeysRepository;
 import danix.app.Store.repositories.UsersRepository;
 import danix.app.Store.security.PersonDetails;
 import danix.app.Store.util.UserException;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -19,10 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Transactional(readOnly = true)
@@ -51,14 +47,14 @@ public class UserService {
     }
 
     @Transactional
-    public void temporalRegisterUser(UserDTO userDTO) {
+    public void temporalRegisterUser(RegistrationUserDTO registrationUserDTO) {
         usersRepository.save(
                 User.builder()
-                        .username(userDTO.getUsername())
-                        .email(userDTO.getEmail())
+                        .username(registrationUserDTO.getUsername())
+                        .email(registrationUserDTO.getEmail())
                         .createdAt(LocalDateTime.now())
                         .status(User.Status.TEMPORAL_REGISTERED)
-                        .password(passwordEncoder.encode(userDTO.getPassword()))
+                        .password(passwordEncoder.encode(registrationUserDTO.getPassword()))
                         .role(User.Roles.ROLE_USER)
                         .build()
         );
@@ -95,7 +91,7 @@ public class UserService {
     }
 
     @Transactional
-    public void deleteTemUser(String email) {
+    public void deleteTempUser(String email) {
         usersRepository.findByEmail(email).ifPresent(user -> {
             if (user.getStatus() == User.Status.TEMPORAL_REGISTERED) {
                 usersRepository.delete(user);
