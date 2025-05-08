@@ -3,8 +3,7 @@ package danix.app.Store.util;
 import danix.app.Store.dto.CartDTO;
 import danix.app.Store.dto.ItemDTO;
 import danix.app.Store.models.Item;
-import danix.app.Store.repositories.ItemRepository;
-import danix.app.Store.services.ItemService;
+import danix.app.Store.repositories.ItemsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;
@@ -14,10 +13,10 @@ import java.util.Optional;
 
 @Component
 public class CartValidator implements Validator {
-    private final ItemRepository itemRepository;
+    private final ItemsRepository itemsRepository;
     @Autowired
-    public CartValidator(ItemRepository itemRepository) {
-        this.itemRepository = itemRepository;
+    public CartValidator(ItemsRepository itemsRepository) {
+        this.itemsRepository = itemsRepository;
     }
 
     @Override
@@ -30,7 +29,7 @@ public class CartValidator implements Validator {
         CartDTO cartDTO = (CartDTO) target;
 
         for (ItemDTO item : cartDTO.getItems()) {
-            Optional<Item> item1 = itemRepository.findByName(item.getName());
+            Optional<Item> item1 = itemsRepository.findByName(item.getName());
             if(item1.isEmpty()) {
                 errors.rejectValue("items", "", "Item " + item.getName() + " not found");
                 break;

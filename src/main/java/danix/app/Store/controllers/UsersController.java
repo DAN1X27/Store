@@ -26,34 +26,27 @@ public class UsersController {
     private final UserService userService;
     private final UpdatePasswordValidator personValidator;
 
-    @GetMapping("/showUserInfo")
+    @GetMapping("/info")
     public ResponseEntity<Map<String, Object>> showUserInfo() {
-
         User user = UserService.getCurrentUser();
-
         Map<String, Object> userInfo = new HashMap<>();
         userInfo.put("username", user.getUsername());
         userInfo.put("email", user.getEmail());
-        userInfo.put("orders", orderService.getAllUserOrders());
-
-
         return new ResponseEntity<>(userInfo, HttpStatus.OK);
     }
 
-    @PatchMapping("/updatePassword")
+    @PatchMapping("/password")
     public ResponseEntity<HttpStatus> updatePassword(@RequestBody UpdatePersonDTO updatePersonDTO,
                                                      BindingResult bindingResult) {
         User currentUser = UserService.getCurrentUser();
         personValidator.validate(updatePersonDTO, bindingResult);
         ErrorHandler.handleException(bindingResult, ExceptionType.USER_EXCEPTION);
-
         currentUser.setPassword(passwordEncoder.encode(updatePersonDTO.getNewPassword()));
         userService.updateUser(currentUser.getId(), currentUser);
-
-        return ResponseEntity.ok(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    @PatchMapping("/updateUsername")
+    @PatchMapping("/username")
     public ResponseEntity<HttpStatus> updateUsername(@RequestBody Map<String, String> newUsername) {
         User user = UserService.getCurrentUser();
 
@@ -78,7 +71,7 @@ public class UsersController {
         user.setUsername(username);
         userService.updateUser(user.getId(), user);
 
-        return ResponseEntity.ok(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @ExceptionHandler

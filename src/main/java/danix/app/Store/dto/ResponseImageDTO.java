@@ -1,13 +1,12 @@
 package danix.app.Store.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.http.MediaType;
 
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
+@NoArgsConstructor
+@Builder
 public class ResponseImageDTO {
     private byte[] imageData;
     private MediaType mediaType;

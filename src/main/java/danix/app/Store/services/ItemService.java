@@ -1,17 +1,19 @@
 package danix.app.Store.services;
 
 import danix.app.Store.dto.*;
-import danix.app.Store.models.CategoryType;
-import danix.app.Store.models.Item;
-import danix.app.Store.models.ItemGrade;
-import danix.app.Store.models.ItemImage;
-import danix.app.Store.repositories.ItemRepository;
+import danix.app.Store.models.*;
+import danix.app.Store.repositories.ItemsGradesRepository;
+import danix.app.Store.repositories.ItemsRepository;
 import danix.app.Store.repositories.ItemsImagesRepository;
 import danix.app.Store.util.ImageException;
 import danix.app.Store.util.ItemException;
+import danix.app.Store.util.PageUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,97 +22,88 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static danix.app.Store.services.UserService.getCurrentUser;
+import static danix.app.Store.util.PageUtils.getPage;
+
+@Slf4j
 @Service
-@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ItemService {
-    private final ItemRepository itemRepository;
-    private final ItemReviewsService itemReviewsService;
-    private final ItemsGradesService itemGradesService;
+    private final ItemsRepository itemsRepository;
+    private final ItemReviewService itemReviewService;
     private final ItemsImagesRepository imagesRepository;
+    private final ItemsGradesRepository gradesRepository;
+    private final ModelMapper modelMapper;
 
     @Value("${items_images_path}")
     private String IMAGES_PATH;
 
-    public List<ResponseItemDTO> getAllItems(String category) {
-        CategoryType categoryType;
-        try {
-            categoryType = CategoryType.valueOf(category.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ItemException("Illegal category");
+    public List<ResponseItemDTO> getAllItems(CategoryType category, int page, int count, String sortProperty) {
+        if (category == CategoryType.NONE) {
+            return itemsRepository.findAll(getPage(page, count, sortProperty)).stream()
+                    .map(this::convertToResponseItemDTO)
+                    .toList();
         }
-        if (categoryType == CategoryType.NONE) {
-            return itemRepository.findAll().stream()
-                    .map(this::convertToResponseItemDTO).toList();
-        }
-        return itemRepository.findAll().stream()
+        return itemsRepository.findAllByCategory(category, getPage(page, count, sortProperty)).stream()
                 .map(this::convertToResponseItemDTO)
-                .filter(item -> item.getCategoryType() == categoryType)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public FindItemDTO findItemByName(String name) {
-        return convertToFindItemDTO(itemRepository.findByName(name)
+        return convertToFindItemDTO(itemsRepository.findByName(name)
                 .orElseThrow(() -> new ItemException("Item not found")));
     }
 
     public Item getItemByName(String name) {
-        return itemRepository.findByName(name)
+        return itemsRepository.findByName(name)
                 .orElseThrow(() -> new ItemException("Item not found"));
     }
 
-    public List<ResponseItemDTO> getAllSortedByRating(String category) {
-        return getAllItems(category).stream()
-                .sorted(Comparator.comparing(ResponseItemDTO::getRating))
-                .toList();
+    public List<ResponseItemDTO> getAllSortedByRating(CategoryType category, int page, int count) {
+        return getAllItems(category, page, count, "rating");
     }
 
-    public List<ResponseItemDTO> getAllItemsSortedByPrice(String category) {
-        return getAllItems(category).stream()
-                .sorted(Comparator.comparing(ResponseItemDTO::getPrice))
-                .toList();
+    public List<ResponseItemDTO> getAllItemsSortedByPrice(CategoryType category, int page, int count) {
+        return getAllItems(category, page, count, "price");
     }
 
     @Transactional
     public void addGradeToItem(int grade, Item item) {
-        itemGradesService.getByItemAndOwner(item, UserService.getCurrentUser()).ifPresentOrElse(itemGrade -> {
-            itemGrade.setGrade(grade);
-        }, () -> {
-            itemGradesService.addItemGrade(new ItemGrade(item, grade, UserService.getCurrentUser()));
-        });
-        List<ItemGrade> itemGrades = itemGradesService.getAllByItem(item);
-        int sum = itemGrades.stream().mapToInt(ItemGrade::getGrade).sum();
-        double rating = Math.round((double) sum / itemGrades.size() * 10.0) / 10.0;
+        User currentUser = getCurrentUser();
+        gradesRepository.findByItemAndOwner(item, currentUser)
+                .ifPresentOrElse(itemGrade -> itemGrade.setGrade(grade),
+                () -> gradesRepository.save(new ItemGrade(item, grade, currentUser)));
+        List<ItemGrade> itemGrades = gradesRepository.findAllByItem(item);
+        double rating = itemGrades.stream().mapToDouble(ItemGrade::getGrade).sum() / itemGrades.size();
         item.setRating(rating);
     }
 
     @Transactional
     public void addItem(SaveItemDTO saveItemDTO) {
-        itemRepository.findByName(saveItemDTO.getName()).ifPresentOrElse(item -> {
+        itemsRepository.findByName(saveItemDTO.getName()).ifPresentOrElse(item -> {
             throw new ItemException("Item with the same name already exists");
         }, () -> {
-            Item item = convertToItem(saveItemDTO);
+            Item item = modelMapper.map(saveItemDTO, Item.class);
             item.setRating(0.0);
-            itemRepository.save(item);
+            itemsRepository.save(item);
         });
     }
 
     @Transactional
     public void addItem(int id) {
-        Item item = itemRepository.findById(id)
+        Item item = itemsRepository.findById(id)
                         .orElseThrow(() -> new ItemException("Item not found"));
         item.setCount(item.getCount() + 1);
     }
 
     @Transactional
     public void deleteItem(int itemId, Integer itemsCount) {
-        Item item = itemRepository.findById(itemId)
+        Item item = itemsRepository.findById(itemId)
                 .orElseThrow(() -> new ItemException("Item not found"));
         if (itemsCount == null || itemsCount > item.getCount()) {
             item.getImages().forEach(image -> {
@@ -121,7 +114,7 @@ public class ItemService {
                     throw new ItemException("Error when delete item");
                 }
             });
-            itemRepository.delete(item);
+            itemsRepository.delete(item);
         } else {
             item.setCount(item.getCount() - itemsCount);
         }
@@ -129,29 +122,33 @@ public class ItemService {
 
     @Transactional
     public void updateItem(Integer id, SaveItemDTO saveItemDTO) {
-        Item item = convertToItem(saveItemDTO);
+        Item item = modelMapper.map(saveItemDTO, Item.class);
         item.setId(id);
-        itemRepository.save(item);
+        itemsRepository.save(item);
     }
 
     @Transactional
     public void addImage(MultipartFile image, int id) {
-        if (!Objects.requireNonNull(image.getOriginalFilename()).endsWith(".jpg") &&
-                !Objects.requireNonNull(image.getOriginalFilename()).endsWith(".png")) {
-            throw new ItemException("Invalid image type");
+        String name = Objects.requireNonNull(image.getOriginalFilename());
+        if (!name.endsWith(".jpg") && !name.endsWith(".png")) {
+            throw new ItemException("Invalid file type");
         }
-        Item item = itemRepository.findById(id)
+        Item item = itemsRepository.findById(id)
                 .orElseThrow(() -> new ItemException("Item not found"));
         if (item.getImages().size() >= 5) {
             throw new ItemException("Too many images");
         }
         Path path = Path.of(IMAGES_PATH);
         String uuid = UUID.randomUUID().toString();
-        File file = new File(path.toString(), uuid + (Objects.requireNonNull(image.getOriginalFilename()).endsWith(".jpg") ? ".jpg" : ".png"));
+        File file = new File(path.toString(), uuid + (name.endsWith(".jpg") ? ".jpg" : ".png"));
+        if (!file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
         try (FileOutputStream outputStream = new FileOutputStream(file)) {
             outputStream.write(image.getBytes());
         } catch (IOException e) {
-            throw new ImageException("Error when upload image");
+            log.error(e.getMessage(), e);
+            throw new ImageException("Error uploading image");
         }
         ItemImage itemImage = new ItemImage();
         itemImage.setItem(item);
@@ -162,19 +159,23 @@ public class ItemService {
     public ResponseImageDTO getImage(long id) {
         ItemImage itemImage = imagesRepository.findById(id)
                 .orElseThrow(() -> new ImageException("Image not found"));
-        Path path = Path.of(IMAGES_PATH);
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
-            for (Path file : stream) {
-                String fileName = file.getFileName().toString().substring(0, file.getFileName().toString().lastIndexOf("."));
-                if (itemImage.getImageUUID().equals(fileName)) {
-                    byte[] imageData = Files.readAllBytes(file);
-                    return new ResponseImageDTO(imageData, file.getFileName().endsWith(".jpg") ? MediaType.IMAGE_JPEG : MediaType.IMAGE_PNG);
-                }
+        Path path = Path.of(IMAGES_PATH, itemImage.getImageUUID() + ".jpg");
+        if (!Files.exists(path)) {
+            path = Path.of(IMAGES_PATH, itemImage.getImageUUID() + ".png");
+            if (!Files.exists(path)) {
+                throw new ItemException("Image not found");
             }
-        } catch (IOException e) {
-            throw new ImageException("Error when download image");
         }
-        throw new ItemException("Image not found");
+        try {
+            byte[] data = Files.readAllBytes(path);
+            return ResponseImageDTO.builder()
+                    .imageData(data)
+                    .mediaType(MediaType.IMAGE_JPEG)
+                    .build();
+        } catch (IOException e) {
+            log.error(e.getMessage(), e);
+            throw new ItemException("Error downloading image");
+        }
     }
 
     @Transactional
@@ -197,42 +198,22 @@ public class ItemService {
                 .count(item.getCount())
                 .price(item.getPrice())
                 .reviews(item.getReviews().stream()
-                        .map(itemReviewsService::convertToItemReviewsDTO)
+                        .map(itemReviewService::convertToItemReviewDTO)
                         .toList())
                 .category(item.getCategory())
                 .description(item.getDescription())
                 .images(item.getImages().stream()
                         .map(image -> new ItemImageIdDTO(image.getId()))
                         .toList())
-                .userGrade(itemGradesService.getByItemAndOwner(item, UserService.getCurrentUser()).isPresent() ?
-                        itemGradesService.getByItemAndOwner(item, UserService.getCurrentUser()).get().getGrade() : null)
+                .userGrade(gradesRepository.findByItemAndOwner(item, getCurrentUser()).isPresent() ?
+                        gradesRepository.findByItemAndOwner(item, getCurrentUser()).get().getGrade() : null)
                 .rating(item.getRating() == 0.0 ? null : item.getRating())
                 .build();
     }
 
-    private Item convertToItem(SaveItemDTO saveItemDTO) {
-        Item item = new Item();
-        try {
-            item.setCategory(CategoryType.valueOf(saveItemDTO.getCategory().toUpperCase()));
-        } catch (IllegalArgumentException e) {
-            throw new ItemException("Invalid category");
-        }
-        item.setPrice(saveItemDTO.getPrice());
-        item.setCount(saveItemDTO.getCount());
-        item.setName(saveItemDTO.getName());
-        item.setDescription(saveItemDTO.getDescription());
-        return item;
-    }
-
     public ResponseItemDTO convertToResponseItemDTO(Item item) {
-        ResponseItemDTO responseItemDTO = new ResponseItemDTO();
-        responseItemDTO.setName(item.getName());
-        responseItemDTO.setPrice(item.getPrice());
-        responseItemDTO.setCount(item.getCount());
-        responseItemDTO.setReviewsCount(item.getReviews().size());
-        responseItemDTO.setCategoryType(item.getCategory());
-        responseItemDTO.setRating(item.getRating());
-        responseItemDTO.setId(item.getId());
-        return responseItemDTO;
+        ResponseItemDTO itemDTO = modelMapper.map(item, ResponseItemDTO.class);
+        itemDTO.setReviewsCount(item.getReviews().size());
+        return itemDTO;
     }
 }

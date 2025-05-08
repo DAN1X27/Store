@@ -3,68 +3,59 @@ package danix.app.Store.controllers;
 import danix.app.Store.dto.*;
 import danix.app.Store.models.CategoryType;
 import danix.app.Store.models.Item;
-import danix.app.Store.repositories.ItemRepository;
+import danix.app.Store.repositories.ItemsRepository;
 import danix.app.Store.services.ItemService;
 import danix.app.Store.util.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.Errors;
-import org.springframework.validation.Validator;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/items")
 @RequiredArgsConstructor
-public class ItemController {
+public class ItemsController {
     private final ItemService itemService;
     private final ItemValidator itemValidator;
-    private final ItemRepository itemRepository;
+    private final ItemsRepository itemsRepository;
 
-    @GetMapping("/getAll")
-    public List<ResponseItemDTO> getAllItems(@RequestParam(value = "sort-by-price", required = false) boolean sort,
+    @GetMapping
+    public List<ResponseItemDTO> getAllItems(@RequestParam(value = "sort-by-price", required = false) boolean sortByPrice,
                                              @RequestParam(value = "sort-by-rating", required = false) boolean sortByRating,
-                                             @RequestBody Map<String, String> category) {
-        String categoryName = category.get("category");
-        if (categoryName == null) {
-            throw new ItemException("Incorrect category");
-        }
-
-        if(sort) {
-            return itemService.getAllItemsSortedByPrice(categoryName);
+                                             @RequestParam int page, @RequestParam int count,
+                                             @RequestParam(defaultValue = "NONE") CategoryType category) {
+        if(sortByPrice) {
+            return itemService.getAllItemsSortedByPrice(category, page, count);
         } else if (sortByRating) {
-            return itemService.getAllSortedByRating(categoryName);
+            return itemService.getAllSortedByRating(category, page, count);
         }
-        return itemService.getAllItems(categoryName);
+        return itemService.getAllItems(category, page, count, "id");
     }
 
-    @GetMapping("/findItem")
+    @GetMapping("/find")
     public FindItemDTO findItem(@RequestBody Map<String, String> item) {
         requestHelper(item);
         return itemService.findItemByName(item.get("name"));
     }
 
-    @PostMapping("/addGrade")
+    @PostMapping("/grade")
     public ResponseEntity<String> addGrade(@RequestBody @Valid AddGradeDTO grade,
                                            BindingResult bindingResult) {
         ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
         Item item = itemService.getItemByName(grade.getItemName());
         itemService.addGradeToItem(grade.getGrade(), item);
-        return ResponseEntity.ok("Grade successfully added");
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @PostMapping("/add")
+    @PostMapping("/new")
     public ResponseEntity<HttpStatus> addItem(@RequestBody @Valid SaveItemDTO item,
                                                        BindingResult bindingResult) {
         ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
@@ -73,7 +64,7 @@ public class ItemController {
     }
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @PatchMapping("/add/{id}")
+    @PatchMapping("/{id}/add")
     public ResponseEntity<HttpStatus> addItem(@PathVariable int id) {
         itemService.addItem(id);
         return ResponseEntity.ok(HttpStatus.OK);
@@ -98,7 +89,7 @@ public class ItemController {
     @DeleteMapping("/image/{id}")
     public ResponseEntity<HttpStatus> deleteImage(@PathVariable long id) {
         itemService.deleteImage(id);
-        return ResponseEntity.ok(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
@@ -108,20 +99,20 @@ public class ItemController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
         itemService.deleteItem(id, count);
-        return ResponseEntity.ok(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @PatchMapping()
+    @PatchMapping
     public ResponseEntity<String> updateItem(@RequestBody @Valid UpdateItemDTO updateItemDTO,
-                                                          BindingResult bindingResult) {
+                                             BindingResult bindingResult) {
         itemValidator.validate(updateItemDTO.getName(), bindingResult);
         ErrorHandler.handleException(bindingResult, ExceptionType.ITEM_EXCEPTION);
-        itemRepository.findByName(updateItemDTO.getSaveItem().getName()).ifPresent(item -> {
+        itemsRepository.findByName(updateItemDTO.getSaveItem().getName()).ifPresent(item -> {
             throw new ItemException("Item " + updateItemDTO.getSaveItem().getName() + "already exists");
         });
         itemService.updateItem(itemService.getItemByName(updateItemDTO.getName()).getId(), updateItemDTO.getSaveItem());
-        return ResponseEntity.ok().body("Updated successfully " + updateItemDTO.getName() + " to " + updateItemDTO.getSaveItem());
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @ExceptionHandler
@@ -146,7 +137,7 @@ public class ItemController {
         if (!item.containsKey("name")) {
             throw new ItemException("Incorrect key");
 
-        }else if (itemRepository.findByName(item.get("name")).isEmpty()) {
+        }else if (itemsRepository.findByName(item.get("name")).isEmpty()) {
             throw new ItemException("Item not found");
         }
     }

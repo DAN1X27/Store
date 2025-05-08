@@ -1,6 +1,6 @@
 package danix.app.Store.task;
 
-import danix.app.Store.repositories.OrderRepository;
+import danix.app.Store.repositories.OrdersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -10,16 +10,16 @@ import java.util.Date;
 
 @Component
 public class OutdatedOderCleanerTask {
-    private final OrderRepository orderRepository;
+    private final OrdersRepository ordersRepository;
 
     @Autowired
-    public OutdatedOderCleanerTask(OrderRepository orderRepository) {
-        this.orderRepository = orderRepository;
+    public OutdatedOderCleanerTask(OrdersRepository ordersRepository) {
+        this.ordersRepository = ordersRepository;
     }
 
     @Transactional
     @Scheduled(cron = "@midnight")
     public void run() {
-        orderRepository.deleteAllByStorageDateLessThan(new Date());
+        ordersRepository.deleteAllByStorageDateLessThan(new Date());
     }
 }

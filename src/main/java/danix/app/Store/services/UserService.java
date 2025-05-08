@@ -7,7 +7,6 @@ import danix.app.Store.repositories.EmailKeysRepository;
 import danix.app.Store.repositories.UsersRepository;
 import danix.app.Store.security.PersonDetails;
 import danix.app.Store.util.UserException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.Authentication;
@@ -21,16 +20,14 @@ import java.util.Optional;
 import java.util.Random;
 
 @Service
-@Transactional(readOnly = true)
 public class UserService {
     private final UsersRepository usersRepository;
     private final PasswordEncoder passwordEncoder;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final EmailKeysRepository emailKeysRepository;
 
-    @Autowired
-    public UserService(UsersRepository usersRepository, @Lazy PasswordEncoder passwordEncoder, KafkaTemplate<String, String> kafkaTemplate,
-                       EmailKeysRepository emailKeysRepository) {
+    public UserService(UsersRepository usersRepository, @Lazy PasswordEncoder passwordEncoder,
+                       KafkaTemplate<String, String> kafkaTemplate, EmailKeysRepository emailKeysRepository) {
         this.usersRepository = usersRepository;
         this.passwordEncoder = passwordEncoder;
         this.kafkaTemplate = kafkaTemplate;
@@ -82,12 +79,12 @@ public class UserService {
     private EmailKey generateEmailKey(String email) {
         Random random = new Random();
         int key = random.nextInt(100000, 999999);
-        EmailKey emailKey = new EmailKey();
-        emailKey.setKey(key);
-        emailKey.setExpiredTime(LocalDateTime.now().plusMinutes(3));
-        emailKey.setEmail(email);
-        emailKey.setAttempts(0);
-        return emailKey;
+        return EmailKey.builder()
+                .key(key)
+                .expiredTime(LocalDateTime.now().plusMinutes(3))
+                .email(email)
+                .attempts(0)
+                .build();
     }
 
     @Transactional

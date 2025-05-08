@@ -9,7 +9,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ItemReviewsDTO {
+public class ItemReviewDTO {
 
     @NotEmpty(message = "Comment must not be empty")
     private String comment;
@@ -18,7 +18,7 @@ public class ItemReviewsDTO {
     private String itemName;
 
     @NotNull(message = "Items grade must not be empty")
-    @Min(value = 1, message = "Grade must be between 1 and 5")
-    @Max(value = 5, message = "Grade must be between 1 and 5")
+    @Min(value = 1, message = "Grade cannot be less then 1")
+    @Max(value = 5, message = "Grade cannot be more then 5")
     private Integer grade;
 }

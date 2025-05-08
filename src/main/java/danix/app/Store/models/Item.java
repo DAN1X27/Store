@@ -2,11 +2,8 @@ package danix.app.Store.models;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.util.List;
-import java.util.Objects;
 
 @Entity
 @Table(name = "Item")
@@ -33,7 +30,7 @@ public class Item {
     private List<Cart> carts;
 
     @OneToMany(mappedBy = "item")
-    private List<ItemReviews> reviews;
+    private List<ItemReview> reviews;
 
     @Enumerated(EnumType.STRING)
     private CategoryType category;

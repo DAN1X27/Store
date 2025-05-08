@@ -5,11 +5,12 @@ import danix.app.Store.models.Item;
 import danix.app.Store.models.Order;
 import danix.app.Store.models.OrderedItems;
 import danix.app.Store.models.User;
-import danix.app.Store.repositories.OrderRepository;
+import danix.app.Store.repositories.IdProjection;
+import danix.app.Store.repositories.OrdersRepository;
+import danix.app.Store.repositories.OrderedItemsRepository;
 import danix.app.Store.util.OrderException;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,87 +19,94 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static danix.app.Store.services.UserService.getCurrentUser;
+import static danix.app.Store.util.PageUtils.getPage;
+import static danix.app.Store.util.PageUtils.getSort;
+
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-    private final OrderRepository orderRepository;
+    private final OrdersRepository ordersRepository;
     private final ItemService itemService;
     private final ModelMapper modelMapper;
-    private final OrderedItemsService orderedItemsService;
+    private final OrderedItemsRepository orderedItemsRepository;
     private final UserService userService;
 
     @Transactional
-    public List<AdminOrderDTO> getAllOrders() {
-        return orderRepository.findAllOrders().stream().map(this::convertToAdminOrderDTO).collect(Collectors.toList());
+    public List<ResponseAdminOrderDTO> getAllOrders(int page, int count) {
+        List<Integer> ids = convertToIds(ordersRepository.findAllOrders(getPage(page, count, "id")));
+        return ordersRepository.findAllByIdIn(ids, getSort("id")).stream()
+                .map(this::convertToAdminOrderDTO)
+                .toList();
     }
 
     @Transactional
-    public List<AdminOrderDTO> getAllUserOrdersForAdmin(String userName) {
-        User user = userService.getUserByUserName(userName).get();
-
-        return orderRepository.finByOwner(user).stream()
-                .map(this::convertToAdminOrderDTO).collect(Collectors.toList());
+    public List<ResponseAdminOrderDTO> getAllUserOrdersForAdmin(String userName, int page, int count) {
+        User user = userService.getUserByUserName(userName)
+                .orElseThrow(() -> new OrderException("User not found"));
+        List<Integer> ids = convertToIds(ordersRepository.findAllByOwner(user, getPage(page, count, "id")));
+        return ordersRepository.findAllByIdIn(ids, getSort("id")).stream()
+                .map(this::convertToAdminOrderDTO)
+                .toList();
     }
 
     @Transactional
-    public List<ResponseOrderDTO> getAllUserOrders() {
-        User owner = UserService.getCurrentUser();
-
-        return orderRepository.finByOwner(owner).stream()
-                .map(this::convertToOrderDTO).collect(Collectors.toList());
+    public List<ResponseOrderDTO> getAllUserOrders(int page, int count) {
+        User owner = getCurrentUser();
+        List<Integer> ids = convertToIds(ordersRepository.findAllByOwner(owner, getPage(page, count, "id")));
+        return ordersRepository.findAllByIdIn(ids, getSort("id")).stream()
+                .map(this::convertToOrderDTO)
+                .toList();
     }
 
     @Transactional
     public void takeOrder(int id) {
-        Optional<Order> order = orderRepository.findById(id);
-        User owner = UserService.getCurrentUser();
-
-        if(order.isEmpty()) {
-            throw new OrderException("Order with this ID not found.");
-        }
-
-        if(!order.get().getOwner().getId().equals(owner.getId())) {
-            throw new OrderException("The order belongs to another user");
-        }
-
-        if(!order.get().isReady()) {
+        Order order = getById(id);
+        checkOrderOwner(order);
+        if (!order.isReady()) {
             throw new OrderException("This order is not ready yet");
         }
-
-        orderRepository.delete(order.get());
-
+        ordersRepository.delete(order);
     }
 
     @Transactional
     public void cancelOrder(int id) {
-        Optional<Order> order = orderRepository.findById(id);
-        User owner = UserService.getCurrentUser();
-
-        if (order.isEmpty()) {
-            throw new OrderException("Order with this ID not found.");
-        }
-
-        if (!order.get().getOwner().getId().equals(owner.getId())) {
-            throw new OrderException("The order belongs to another user");
-        }
-
-        orderRepository.delete(order.get());
+        Order order = getById(id);
+        checkOrderOwner(order);
+        returnItemsCount(order);
+        ordersRepository.delete(order);
     }
 
     @Transactional
-    public void cancelOrderForAdmin(int id) {
-        Optional<Order> order = orderRepository.findById(id);
+    public void cancelOrderByAdmin(int id) {
+        Order order = getById(id);
+        returnItemsCount(order);
+        ordersRepository.delete(order);
+    }
 
-        if(order.isEmpty()) {
-            throw new OrderException("Order with this ID not found.");
-        }
-
-        orderRepository.delete(order.get());
+    private void returnItemsCount(Order order) {
+        order.getItems().forEach(item -> item.setCount(item.getCount() + 1));
     }
 
     @Transactional
-    public void createOrder(OrderDTO order) {
-        orderRepository.save(convertToOrder(order));
+    public void createOrder(OrderDTO orderDTO) {
+        User currentUser = getCurrentUser();
+        Calendar readyDate = Calendar.getInstance();
+        readyDate.add(Calendar.DAY_OF_MONTH, 2);
+        Calendar storageDate = Calendar.getInstance();
+        storageDate.add(Calendar.DAY_OF_MONTH, 16);
+        Order order = Order.builder()
+                .storageDate(storageDate.getTime())
+                .orderReadyDate(readyDate.getTime())
+                .createdAt(LocalDateTime.now())
+                .isReady(false)
+                .owner(currentUser)
+                .price(orderDTO.getItems().stream()
+                        .mapToDouble(item -> item.getCount() * itemService.getItemByName(item.getName()).getPrice())
+                        .sum())
+                .build();
+        order.setItems(getItems(orderDTO, order));
+        ordersRepository.save(order);
     }
 
     private List<Item> getItems(OrderDTO orderDTO, Order order) {
@@ -116,48 +124,19 @@ public class OrderService {
         if(itemDTO != null) {
             item.setCount(item.getCount() - itemDTO.getCount());
             OrderedItems orderedItems = new OrderedItems(order, item, itemDTO.getCount());
-            orderedItemsService.save(orderedItems);
+            orderedItemsRepository.save(orderedItems);
         }
         return item;
     }
 
-    private Order convertToOrder(OrderDTO orderDTO) {
-        Order order = new Order();
-        User owner = UserService.getCurrentUser();
-
-        Calendar readyDate = Calendar.getInstance();
-        readyDate.add(Calendar.DAY_OF_MONTH, 2);
-
-        Calendar storageDate = Calendar.getInstance();
-        storageDate.add(Calendar.DAY_OF_MONTH, 16);
-
-        order.setStorageDate(storageDate.getTime());
-        order.setOrderReadyDate(readyDate.getTime());
-        order.setCreatedAt(LocalDateTime.now());
-        order.setReady(false);
-        order.setOwner(owner);
-        order.setItems(getItems(orderDTO, order));
-        order.setPrice(orderDTO.getItems().stream().mapToDouble(item -> item.getCount() * itemService.getItemByName(item.getName()).getPrice()).sum());
-
-        return order;
-    }
-
     public ResponseOrderDTO convertToOrderDTO(Order order) {
-        ResponseOrderDTO responseOrderDTO = new ResponseOrderDTO();
-
+        ResponseOrderDTO responseOrderDTO = modelMapper.map(order, ResponseOrderDTO.class);
         responseOrderDTO.setItems(getItems(order));
-        responseOrderDTO.setIsReady(order.isReady()
-                ? "Order is ready. You can take this." : "The order is not ready yet.");
-        responseOrderDTO.setStorageDate(order.getStorageDate());
-        responseOrderDTO.setOrderReadyDate(order.getOrderReadyDate());
-        responseOrderDTO.setSum(order.getPrice());
-        responseOrderDTO.setId(order.getId());
-
         return responseOrderDTO;
     }
 
     private List<SaveItemDTO> getItems(Order order) {
-        Map<String, OrderedItems> orderedItems = orderedItemsService.getByOrder(order).stream()
+        Map<String, OrderedItems> orderedItems = orderedItemsRepository.findAllByOrder(order).stream()
                 .collect(Collectors.toMap(OrderedItems::getItemName, Function.identity()));
         return order.getItems().stream()
                 .map(item -> modelMapper.map(item, SaveItemDTO.class))
@@ -174,18 +153,26 @@ public class OrderService {
         return saveItemDTO;
     }
 
-    public AdminOrderDTO convertToAdminOrderDTO(Order order) {
-        AdminOrderDTO adminOrderDTO = new AdminOrderDTO();
+    public ResponseAdminOrderDTO convertToAdminOrderDTO(Order order) {
+        ResponseAdminOrderDTO adminOrderDTO = modelMapper.map(order, ResponseAdminOrderDTO.class);
         adminOrderDTO.setItems(getItems(order));
-        adminOrderDTO.setIsReady(order.isReady()
-                ? "Order is ready. You can take this." : "The order is not ready yet.");
-        adminOrderDTO.setStorageDate(order.getStorageDate());
-        adminOrderDTO.setOrderReadyDate(order.getOrderReadyDate());
-        adminOrderDTO.setId(order.getId());
-        adminOrderDTO.setSum(order.getPrice());
-        adminOrderDTO.setCreatedAt(order.getCreatedAt());
-        adminOrderDTO.setOwnerName(order.getOwner().getUsername());
-
         return adminOrderDTO;
+    }
+
+    private List<Integer> convertToIds(List<IdProjection> projections) {
+        return projections.stream()
+                .map(IdProjection::getId)
+                .toList();
+    }
+
+    private void checkOrderOwner(Order order) {
+        if (!order.getOwner().getId().equals(getCurrentUser().getId())) {
+            throw new OrderException("You are not owner of this order");
+        }
+    }
+
+    private Order getById(int id) {
+        return ordersRepository.findById(id)
+                .orElseThrow(() -> new OrderException("Order not found"));
     }
 }

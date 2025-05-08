@@ -6,23 +6,17 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
 @Getter
 @Setter
-public class AdminOrderDTO {
+public class ResponseAdminOrderDTO {
 
     private Integer id;
     private List<SaveItemDTO> items;
-
     private LocalDateTime createdAt;
-
-    private String ownerName;
-
-    private Double sum;
-
+    private String ownerUsername;
+    private Double price;
     private Date orderReadyDate;
-    private String isReady;
-
+    private boolean isReady;
     private Date storageDate;
 }

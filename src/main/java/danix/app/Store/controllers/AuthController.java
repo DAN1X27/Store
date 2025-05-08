@@ -60,8 +60,8 @@ public class AuthController {
         return new ResponseEntity<>(Map.of("jwt-token", token), HttpStatus.OK);
     }
 
-    @GetMapping("/forgotPassword")
-    public ResponseEntity<String> forgotPassword(@RequestBody Map<String, String> emailData) {
+    @PostMapping("/password/key")
+    public ResponseEntity<HttpStatus> forgotPassword(@RequestBody Map<String, String> emailData) {
         String email = emailData.get("email");
         if (email == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
@@ -75,11 +75,11 @@ public class AuthController {
            userService.deleteEmailKey(key);
         });
         userService.sendRecoverPasswordKey(email);
-        return ResponseEntity.ok("Success");
+        return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
-    @PatchMapping("/recoverPassword")
-    public ResponseEntity<String> recoverPassword(@RequestBody @Valid RecoverPasswordDTO recoverPasswordDTO,
+    @PatchMapping("/password")
+    public ResponseEntity<HttpStatus> recoverPassword(@RequestBody @Valid RecoverPasswordDTO recoverPasswordDTO,
                                                   BindingResult bindingResult) {
         ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
         emailKeyValidator.validate(recoverPasswordDTO, bindingResult);
@@ -88,11 +88,11 @@ public class AuthController {
                         .orElseThrow(() -> new AuthenticationException("User not found"));
         user.setPassword(passwordEncoder.encode(recoverPasswordDTO.getNewPassword()));
         userService.updateUser(user.getId(), user);
-        return ResponseEntity.ok("Password recovered");
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PostMapping("/registration")
-    public ResponseEntity<String> registration(@RequestBody @Valid RegistrationUserDTO registrationUserDTO,
+    public ResponseEntity<HttpStatus> registration(@RequestBody @Valid RegistrationUserDTO registrationUserDTO,
                                                    BindingResult bindingResult) {
         ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
         registrationValidator.validate(registrationUserDTO, bindingResult);
@@ -100,17 +100,17 @@ public class AuthController {
         userService.deleteTempUser(registrationUserDTO.getEmail());
         userService.temporalRegisterUser(registrationUserDTO);
         userService.sendRegistrationKey(registrationUserDTO.getEmail());
-        return ResponseEntity.ok("Key sent");
+        return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
     @PatchMapping("/registration/accept")
-    public ResponseEntity<String> registerUser(@RequestBody @Valid AcceptEmailKeyDTO emailKey,
+    public ResponseEntity<HttpStatus> registerUser(@RequestBody @Valid AcceptEmailKeyDTO emailKey,
                                                BindingResult bindingResult) {
         ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
         emailKeyValidator.validate(emailKey, bindingResult);
         ErrorHandler.handleException(bindingResult, ExceptionType.AUTHENTICATION_EXCEPTION);
         userService.register(emailKey.getEmail());
-        return ResponseEntity.ok("Registration succeeded");
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PostMapping("/logout")

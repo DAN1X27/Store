@@ -12,8 +12,8 @@ import java.util.List;
 public class ResponseOrderDTO {
     private Integer id;
     private List<SaveItemDTO> items;
-    private Double sum;
+    private Double price;
     private Date orderReadyDate;
     private Date storageDate;
-    private String isReady;
+    private boolean isReady;
 }

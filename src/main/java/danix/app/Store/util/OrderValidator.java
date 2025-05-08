@@ -1,9 +1,7 @@
 package danix.app.Store.util;
 
 import danix.app.Store.dto.OrderDTO;
-import danix.app.Store.repositories.ItemRepository;
 import danix.app.Store.services.ItemService;
-import danix.app.Store.services.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;

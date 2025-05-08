@@ -1,13 +1,11 @@
 package danix.app.Store.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.Date;
 
-@Getter
-@Setter
-public class ResponseItemReviewsDTO {
+@Data
+public class ResponseItemReviewDTO {
 
     private String comment;
 

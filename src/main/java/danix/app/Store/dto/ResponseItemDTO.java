@@ -1,11 +1,9 @@
 package danix.app.Store.dto;
 
 import danix.app.Store.models.CategoryType;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Getter
-@Setter
+@Data
 public class ResponseItemDTO {
 
     private String name;

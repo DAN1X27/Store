@@ -7,6 +7,9 @@ import danix.app.Store.models.TokenStatus;
 import danix.app.Store.repositories.UsersRepository;
 import danix.app.Store.util.UserException;
 import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,13 +24,17 @@ public class AdminService {
     private final UsersRepository usersRepository;
     private final OrderService orderService;
     private final TokensService tokensService;
+    private final ModelMapper modelMapper;
 
-    public List<ResponseUserDTO> getAllUsers() {
-        return usersRepository.findAll().stream().map(this::convertToResponsePersonDTO).collect(Collectors.toList());
+    public List<ResponseUserDTO> getAllUsers(int page, int count) {
+        return usersRepository.findAll(PageRequest.of(page, count, Sort.by(Sort.Direction.DESC, "id"))).stream()
+                .map(this::convertToResponseUserDTO)
+                .collect(Collectors.toList());
     }
 
-    public Optional<ResponseUserDTO> findPersonByUsername(String username) {
-        return usersRepository.findByUsername(username).map(this::convertToResponsePersonDTO);
+    public Optional<ResponseUserDTO> findUserByUsername(String username) {
+        return usersRepository.findByUsername(username)
+                .map(this::convertToResponseUserDTO);
     }
 
     @Transactional
@@ -56,18 +63,10 @@ public class AdminService {
 
     }
 
-    private ResponseUserDTO convertToResponsePersonDTO(User user) {
-        ResponseUserDTO responseUserDTO = new ResponseUserDTO();
-
+    private ResponseUserDTO convertToResponseUserDTO(User user) {
+        ResponseUserDTO responseUserDTO = modelMapper.map(user, ResponseUserDTO.class);
         responseUserDTO.setOrders(user.getOrders().stream()
                 .map(orderService::convertToAdminOrderDTO).collect(Collectors.toList()));
-
-        responseUserDTO.setUsername(user.getUsername());
-        responseUserDTO.setEmail(user.getEmail());
-        responseUserDTO.setRole(user.getRole());
-        responseUserDTO.setCreatedAt(user.getCreatedAt());
-        responseUserDTO.setStatus(user.getStatus());
-
         return responseUserDTO;
     }
 }

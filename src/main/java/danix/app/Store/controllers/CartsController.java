@@ -8,7 +8,6 @@ import danix.app.Store.services.UserService;
 import danix.app.Store.util.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -17,37 +16,36 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/cart")
 @RequiredArgsConstructor
-public class CartController {
+public class CartsController {
     private final CartService cartService;
     private final CartValidator cartValidator;
 
-    @GetMapping()
+    @GetMapping
     public ResponseEntity<ResponseCartDTO> showUserCart() {
         User currentUser = UserService.getCurrentUser();
-
         return new ResponseEntity<>(cartService.getByOwner(currentUser), HttpStatus.OK);
     }
 
-    @PostMapping("/create")
+    @PostMapping
     public ResponseEntity<HttpStatus> createUserCart(@RequestBody @Valid CartDTO cartDTO, BindingResult bindingResult) {
         cartValidator.validate(cartDTO, bindingResult);
         ErrorHandler.handleException(bindingResult, ExceptionType.CART_EXCEPTION);
 
         cartService.addCart(cartDTO);
 
-        return ResponseEntity.ok(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    @PostMapping("/createOrder")
+    @PostMapping("/order")
     public ResponseEntity<HttpStatus> createOrder() {
         cartService.createOrder();
-        return ResponseEntity.ok(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @DeleteMapping("/clean")
     public ResponseEntity<HttpStatus> cleanUserCart() {
         cartService.cleanCart();
-        return ResponseEntity.ok(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @ExceptionHandler

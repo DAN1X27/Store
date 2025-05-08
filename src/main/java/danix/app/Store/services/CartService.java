@@ -5,6 +5,7 @@ import danix.app.Store.models.Cart;
 import danix.app.Store.models.CartItems;
 import danix.app.Store.models.Item;
 import danix.app.Store.models.User;
+import danix.app.Store.repositories.CartItemsRepository;
 import danix.app.Store.repositories.CartRepository;
 import danix.app.Store.util.CartException;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class CartService {
     private final CartRepository cartRepository;
     private final ModelMapper modelMapper;
     private final ItemService itemService;
-    private final CartItemsService cartItemsService;
+    private final CartItemsRepository cartItemsRepository;
     private final OrderService orderService;
 
     public ResponseCartDTO getByOwner(User owner) {
@@ -85,7 +86,7 @@ public class CartService {
             if (cartItem == null) {
                 Item item = itemService.getItemByName(itemDTO.getName());
                 cartItem = new CartItems(cart, item , itemDTO.getCount());
-                cartItemsService.save(cartItem);
+                cartItemsRepository.save(cartItem);
                 cart.getItems().add(item);
             } else {
                 cartItem.setCount(cartItem.getCount() + itemDTO.getCount());
@@ -128,13 +129,13 @@ public class CartService {
         ItemDTO itemDTO = itemDTOs.get(item.getName());
         if (itemDTO != null) {
             CartItems cartItems = new CartItems(cart, item, itemDTO.getCount());
-            cartItemsService.save(cartItems);
+            cartItemsRepository.save(cartItems);
         }
         return item;
     }
 
     private Map<String, CartItems> getCartItems(Cart cart) {
-        List<CartItems> cartItems = cartItemsService.getByCart(cart);
+        List<CartItems> cartItems = cartItemsRepository.findByCart(cart);
         return cartItems.stream()
                 .collect(Collectors.toMap(CartItems::getItemName, Function.identity()));
     }

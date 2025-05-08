@@ -12,7 +12,7 @@ import java.util.List;
 public class ResponseUserDTO {
     private String username;
     private String email;
-    private List<AdminOrderDTO> orders;
+    private List<ResponseAdminOrderDTO> orders;
     private LocalDateTime createdAt;
     private User.Roles role;
     private User.Status status;

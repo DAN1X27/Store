@@ -33,4 +33,4 @@ build/
 .vscode/
 
 /files
-/db
+/db/data
