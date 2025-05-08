@@ -2,11 +2,9 @@ package danix.app.Store.controllers;
 
 import danix.app.Store.dto.UpdatePersonDTO;
 import danix.app.Store.models.User;
-import danix.app.Store.services.OrderService;
 import danix.app.Store.services.UserService;
 import danix.app.Store.util.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,7 +19,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UsersController {
 
-    private final OrderService orderService;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
     private final UpdatePasswordValidator personValidator;
